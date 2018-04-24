@@ -1,0 +1,285 @@
+
+sfs_init()
+
+Init(): Super Block is written in the file
+
+Init(): inode bitmap is written in the file
+
+Init(): block bitmap is written in the file
+
+Succeed to write block 0
+
+Succeed to write block 1
+
+Succeed to write block 2
+
+Succeed to write block 3
+
+Succeed to write block 4
+
+Succeed to write block 5
+
+Succeed to write block 6
+
+Succeed to write block 7
+
+Succeed to write block 8
+
+Succeed to write block 9
+
+Succeed to write block 10
+
+Succeed to write block 11
+
+Succeed to write block 12
+
+Succeed to write block 13
+
+Succeed to write block 14
+
+Succeed to write block 15
+
+Succeed to write block 16
+
+Succeed to write block 17
+
+Succeed to write block 18
+
+Succeed to write block 19
+
+Succeed to write block 20
+
+Succeed to write block 21
+
+Succeed to write block 22
+
+Succeed to write block 23
+
+Succeed to write block 24
+
+Succeed to write block 25
+
+Succeed to write block 26
+
+Succeed to write block 27
+
+Succeed to write block 28
+
+Succeed to write block 29
+
+Succeed to write block 30
+
+Succeed to write block 31
+
+Succeed to write block 32
+
+Succeed to write block 33
+
+Succeed to write block 34
+
+Succeed to write block 35
+
+Succeed to write block 36
+
+Succeed to write block 37
+
+Succeed to write block 38
+
+Succeed to write block 39
+
+Succeed to write block 40
+
+Succeed to write block 41
+
+Succeed to write block 42
+
+Succeed to write block 43
+
+Succeed to write block 44
+
+Succeed to write block 45
+
+Succeed to write block 46
+
+Succeed to write block 47
+
+Succeed to write block 48
+
+Succeed to write block 49
+
+Succeed to write block 50
+
+Succeed to write block 51
+
+Succeed to write block 52
+
+Succeed to write block 53
+
+Succeed to write block 54
+
+Succeed to write block 55
+
+Succeed to write block 56
+
+Succeed to write block 57
+
+Succeed to write block 58
+
+Succeed to write block 59
+
+Succeed to write block 60
+
+Succeed to write block 61
+
+Succeed to write block 62
+
+Succeed to write block 63
+
+Succeed to write block 64
+
+Succeed to write block 65
+
+Succeed to write block 66
+
+Succeed to write block 67
+
+Succeed to write block 68
+
+Succeed to write block 69
+
+Succeed to write block 70
+
+Succeed to write block 71
+
+Succeed to write block 72
+
+Succeed to write block 73
+
+Succeed to write block 74
+
+Succeed to write block 75
+
+Succeed to write block 76
+
+Succeed to write block 77
+
+Succeed to write block 78
+
+Succeed to write block 79
+
+Succeed to write block 80
+
+Succeed to write block 81
+
+Succeed to write block 82
+
+Succeed to write block 83
+
+Succeed to write block 84
+
+Succeed to write block 85
+
+Succeed to write block 86
+
+Succeed to write block 87
+
+Succeed to write block 88
+
+Succeed to write block 89
+
+Succeed to write block 90
+
+Succeed to write block 91
+
+Succeed to write block 92
+
+Succeed to write block 93
+
+Succeed to write block 94
+
+Succeed to write block 95
+
+Succeed to write block 96
+
+Succeed to write block 97
+
+Succeed to write block 98
+
+Succeed to write block 99
+
+Succeed to write block 100
+
+Succeed to write block 101
+
+Succeed to write block 102
+
+Succeed to write block 103
+
+Succeed to write block 104
+
+Succeed to write block 105
+
+Succeed to write block 106
+
+Succeed to write block 107
+
+Succeed to write block 108
+
+Succeed to write block 109
+
+Succeed to write block 110
+
+Succeed to write block 111
+
+Succeed to write block 112
+
+Succeed to write block 113
+
+Succeed to write block 114
+
+Succeed to write block 115
+
+Succeed to write block 116
+
+Succeed to write block 117
+
+Succeed to write block 118
+
+Succeed to write block 119
+
+Succeed to write block 120
+
+Succeed to write block 121
+
+Succeed to write block 122
+
+Succeed to write block 123
+
+Succeed to write block 124
+
+Succeed to write block 125
+
+Succeed to write block 126
+
+Succeed to write block 127
+    conn:
+    proto_major = 7
+    proto_minor = 26
+    async_read = 1
+    max_write = 131072
+    max_readahead = 131072
+    capable = 00000ffb
+    want = 00000010
+    context:
+    fuse = 00d0b710
+    uid = 0
+    gid = 0
+    pid = 0
+    private_data = 00d0b260
+    logfile = 00d0b280
+    diskfile = /.freespace/testfsfile
+    umask = 00000
+
+sfs_getattr(path="/.Trash", statbuf=0x7d8c7c40)
+
+sfs_getattr(path="/.Trash-1000", statbuf=0x7d0c6c40)
