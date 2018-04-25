@@ -151,12 +151,14 @@ void *sfs_init(struct fuse_conn_info *conn)
 	fprintf(stderr, "in bb-init\n");
 	log_msg("\nsfs_init()\n");
 	disk_open((SFS_DATA)->diskfile);
+	int in;
 	//Data Structure
-	for(int in = 0; in < TOTAL_INODE_NUMBER; in++){
+	for (in = 0; in < TOTAL_INODE_NUMBER; in++) {
 		fd.table[in].id = in;
 		fd.table[in].inode_id = -1;
 		inodes_table.table[in].id = in;
-		for(int j = 0; j<15; j++){
+		int j;
+		for (j = 0; j<15; j++) {
 			inodes_table.table[in].data_blocks[j] = -1;
 		}
 		memset(inodes_table.table[in].path, 0, 64*sizeof(char));
@@ -169,7 +171,6 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//If there us no SFS in the diskfile
 
 	char *buf = (char*) malloc(BLOCK_SIZE);
-
 
 	// initialize superblock etc here in file
 	supablock.inodes = TOTAL_INODE_NUMBER;
