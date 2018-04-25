@@ -236,28 +236,28 @@ void sfs_destroy(void *userdata)
  */
 int sfs_getattr(const char *path, struct stat *statbuf)
 {
-    int retstat = 0;
-    char fpath[PATH_MAX];
- 
-   log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
-    path, statbuf);
-   
-    int inode = get_inode_from_path(path);
-    if(inode!=-1)
-    {
-      inode_t *tmp = &inodes_table.table[inode];
-      statbuf->st_mode = tmp->st_mode;
-      statbuf->st_nlink = tmp->links;
-      statbuf->st_ctime = tmp->created;
-      statbuf->st_size = tmp->size;
-      statbuf->st_blocks = tmp->blocks;
-    }else{
-      log_msg("\n\nInode not found for path: %s\n\n", path);
-      retstat = -ENOENT;
-    }
-    log_stat(statbuf);
+	int retstat = 0;
+	char fpath[PATH_MAX];
 
-    return retstat;
+	log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
+			path, statbuf);
+
+	int inode = get_inode_from_path(path);
+	if(inode!=-1)
+	{
+		inode_t *tmp = &inodes_table.table[inode];
+		statbuf->st_mode = tmp->st_mode;
+		statbuf->st_nlink = tmp->links;
+		statbuf->st_ctime = tmp->created;
+		statbuf->st_size = tmp->size;
+		statbuf->st_blocks = tmp->blocks;
+	}else{
+		log_msg("\n\nInode not found for path: %s\n\n", path);
+		retstat = -ENOENT;
+	}
+	log_stat(statbuf);
+
+	return retstat;
 }
 
 /**
