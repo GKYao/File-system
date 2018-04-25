@@ -151,18 +151,15 @@ void *sfs_init(struct fuse_conn_info *conn)
 	fprintf(stderr, "in bb-init\n");
 	log_msg("\nsfs_init()\n");
 	disk_open((SFS_DATA)->diskfile);
-	int in;
-	in = 0;
 	//Data Structure
-	for(; in<TOTAL_INODE_NUMBER;in++){
+	for(int in = 0; in < TOTAL_INODE_NUMBER; in++){
 		fd.table[in].id = in;
 		fd.table[in].inode_id = -1;
 		inodes_table.table[in].id = in;
-		int j;
-		for(j = 0; j<15;j++){
+		for(int j = 0; j<15; j++){
 			inodes_table.table[in].data_blocks[j] = -1;
 		}
-		memset(inodes_table.table[in].path, 0, 64*sizeof(char)) ;
+		memset(inodes_table.table[in].path, 0, 64*sizeof(char));
 	}
 	memset(inodes_bm.bitmap,0,TOTAL_INODE_NUMBER/8);
 	memset(block_bm.bitmap, 0, TOTAL_DATA_BLOCKS/8);
@@ -194,10 +191,10 @@ void *sfs_init(struct fuse_conn_info *conn)
 	if (block_write(0, &supablock) > 0)
 		log_msg("\nInit(): Super Block is written in the file\n");
 
-	if(block_write(1, &inodes_bm)>0)
+	if(block_write(1, &inodes_bm) > 0)
 		log_msg("\nInit(): inode bitmap is written in the file\n");
 
-	if(block_write(2, &block_bm)>0)
+	if(block_write(2, &block_bm) > 0)
 		log_msg("\nInit(): block bitmap is written in the file\n");
 
 	int i = 0;
@@ -208,12 +205,11 @@ void *sfs_init(struct fuse_conn_info *conn)
 
 		if(block_write(i+3, buffer) <= 0) {
 			log_msg("\nFailed to write block %d\n", i);
-		}else{
+		}else {
 			log_msg("\nSucceed to write block %d\n", i);
 		}
 	}
 	free(buffer);
-
 
 	log_conn(conn);
 	log_fuse_context(fuse_get_context());
