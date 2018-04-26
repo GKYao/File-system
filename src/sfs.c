@@ -242,7 +242,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 	log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 			path, statbuf);
 
-	int inode = get_inode_from_path(path);
+	int inode = find_inode_with_path(path);
 	if(inode!=-1)
 	{
 		inode_t *tmp = &inodes_table.table[inode];
