@@ -142,9 +142,12 @@ int get_bit(unsigned char data, int bit) {
 }
 
 int find_next_inode() {
-	int i;
+	int i, j;
 	for (i = 0; i < sizeof(inodes_bm); i++) {
 
+		for (j = 0; j < 8; j++) {
+
+		}
 	}
 	return -1;
 }
