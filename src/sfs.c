@@ -60,6 +60,22 @@ typedef struct file_descriptor{
 	int inode_id;
 } fd_t;
 
+typedef struct byte_fields {
+	unsigned int bit0:1;
+	unsigned int bit1:1;
+	unsigned int bit2:1;
+	unsigned int bit3:1;
+	unsigned int bit4:1;
+	unsigned int bit5:1;
+	unsigned int bit6:1;
+	unsigned int bit7:1;
+} byte_fields;
+
+typedef union byte_t {
+	unsigned int byte;
+	byte_fields bits;
+} byte_t;
+
 superblock_t supablock;
 inode_t inode_table[TOTAL_INODE_NUMBER];
 fd_t fd_table[TOTAL_INODE_NUMBER];
@@ -83,7 +99,6 @@ void clear_nth_bit(unsigned char *bitmap, int idx)
 	bitmap[idx / 8] &= ~(1 << (idx % 8));
 }
 
-
 void set_inode_bit(int index, int bit)
 {
 	if(bit == 1){
@@ -106,10 +121,33 @@ int find_inode_with_path(const char* path)
 	return -1;
 }
 
-int find_next_inode() {
-	int i;
-	for (i = 0; i < inodes_bm; i++) {
+int get_bit(unsigned char data, int bit) {
+	if (bit > 7) return -1;
+	byte_t thisByte;
+	thisByte.byte = data;
+	int thisBit;
+	switch (bit) {
+		case 0: thisBit = thisByte.bits.bit0; break;
+		case 1: thisBit = thisByte.bits.bit1; break;
+		case 2: thisBit = thisByte.bits.bit2; break;
+		case 3: thisBit = thisByte.bits.bit3; break;
+		case 4: thisBit = thisByte.bits.bit4; break;
+		case 5: thisBit = thisByte.bits.bit5; break;
+		case 6: thisBit = thisByte.bits.bit6; break;
+		case 7: thisBit = thisByte.bits.bit7; break;
+		default : thisBit = -1; break;
+	}
 
+	return thisBit;
+}
+
+int find_next_inode() {
+	int i, j;
+	for (i = 0; i < sizeof(inodes_bm); i++) {
+
+		for (j = 0; j < 8; j++) {
+
+		}
 	}
 	return -1;
 }
