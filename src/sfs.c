@@ -79,7 +79,7 @@ typedef union byte_t {
 superblock_t supablock;
 inode_t inode_table[TOTAL_INODE_NUMBER];
 fd_t fd_table[TOTAL_INODE_NUMBER];
-unsigned char inodes_bm[TOTAL_INODE_NUMBER/8];
+unsigned char inode_bm[TOTAL_INODE_NUMBER/8];
 unsigned char block_bm[TOTAL_DATA_BLOCKS/8];
 
 ///////////////////////////////////////////////////////////
@@ -88,23 +88,17 @@ unsigned char block_bm[TOTAL_DATA_BLOCKS/8];
 // come indirectly from /usr/include/fuse.h
 //
 
-void set_nth_bit(unsigned char *bitmap, int idx)
-{   
-	bitmap[idx / 8] |= 1 << (idx % 8);
-}
+void set_nth_bit(unsigned char *bitmap, int idx) { bitmap[idx / 8] |= 1 << (idx % 8); }
 
-void clear_nth_bit(unsigned char *bitmap, int idx)
-{   
-	bitmap[idx / 8] &= ~(1 << (idx % 8));
-}
+void clear_nth_bit(unsigned char *bitmap, int idx) { bitmap[idx / 8] &= ~(1 << (idx % 8)); }
 
 void set_inode_bit(int index, int bit)
 {
 	if(bit == 1){
-		set_nth_bit(inodes_bm, index);
+		set_nth_bit(inode_bm, index);
 	}
 	else
-		clear_nth_bit(inodes_bm, index);
+		clear_nth_bit(inode_bm, index);
 }
 
 int find_inode_with_path(const char* path)
@@ -140,21 +134,17 @@ int get_bit(unsigned char dataByte, int bit) {
 	return thisBit;
 }
 
-int find_next_inode() {
+int find_next_free(unsigned char bitmap[]) {
 	int i, j, num;
 	num = 0;
-	for (i = 0; i < sizeof(inodes_bm); i++) {
-		unsigned char bmByte = inodes_bm[i];
+	for (i = 0; i < sizeof(bitmap); i++) {
+		unsigned char bmByte = bitmap[i];
 		for (j = 0; j < 8; j++) {
 			if (get_bit(bmByte, j) == 0) return num;
 			num++;
 		}
 		num++;
 	}
-	return -1;
-}
-
-int find_next_data_block(){
 	return -1;
 }
 
@@ -186,7 +176,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 		}
 		memset(inode_table[in].path, 0, 64*sizeof(char));
 	}
-	memset(inodes_bm,0,TOTAL_INODE_NUMBER/8);
+	memset(inode_bm,0,TOTAL_INODE_NUMBER/8);
 	memset(block_bm, 0, TOTAL_DATA_BLOCKS/8);
 	//Pushing everything in diskfile
 	//If there us no SFS in the diskfile
@@ -214,7 +204,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	if (block_write(0, &supablock) > 0)
 		log_msg("\nInit(): Super Block is written in the file\n");
 
-	if(block_write(1, &inodes_bm) > 0)
+	if(block_write(1, &inode_bm) > 0)
 		log_msg("\nInit(): inode bitmap is written in the file\n");
 
 	if(block_write(2, &block_bm) > 0)
@@ -303,8 +293,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 	    path, mode, fi);
     int i = find_inode_with_path(path);
-    if(i == -1){
-      int num = find_next_inode();
+    if(i == -1) {
+      int num = find_next_free(inode_bm)();
       struct inode *tmp = malloc(sizeof(struct inode));
       tmp->id = num;
       tmp->size = 0;
@@ -322,7 +312,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
       struct inode *in = &inode_table[num];
       set_inode_bit(num, 1);
       free(tmp);
-      block_write(1, &inodes_bm);
+      block_write(1, &inode_bm);
       uint8_t *buffer = malloc(BLOCK_SIZE);
       memcpy(buffer, &inode_table[i], sizeof(struct inode));
       if(block_write(i+3, buffer) <= 0) {
