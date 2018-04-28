@@ -304,8 +304,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	    path, mode, fi);
     int i = find_inode_with_path(path);
     if(i == -1){
-      //Find Free Inode
-      i =0;
       int num = find_next_inode();
       struct inode *tmp = malloc(sizeof(struct inode));
       tmp->id = num;
