@@ -170,70 +170,74 @@ int find_next_data_block(){
  */
 void *sfs_init(struct fuse_conn_info *conn)
 {
-    // fprintf(stderr, "YAO-----Init\n");
-    fprintf(stderr, "in bb-init\n");
-    log_msg("\nsfs_init()\n");
-    disk_open((SFS_DATA)->diskfile);
-    int in;
-    in = 0;
-    //Data Structure
-    for(; in<TOTAL_INODE_NUMBER;in++){
-      fd.table[in].id = in;
-      fd.table[in].inode_id = -1;
-      inodes_table.table[in].id = in;
-      int j;
-      for(j = 0; j<15;j++){
-       inodes_table.table[in].data_blocks[j] = -1;
-      }
-      memset(inodes_table.table[in].path, 0, 64*sizeof(char)) ;
-      }
-    memset(inodes_bm.bitmap,0,TOTAL_INODE_NUMBER/8);
-    memset(block_bm.bitmap, 0, TOTAL_DATA_BLOCKS/8);
-    inodes_bm.size = TOTAL_INODE_NUMBER;
-    block_bm.size = TOTAL_DATA_BLOCKS;
-//Pushing everything in diskfile
-//If there us no SFS in the diskfile
-    char *buf = (char*) malloc(BLOCK_SIZE);
-      // initialize superblock etc here in file
-      supablock.inodes = TOTAL_INODE_NUMBER;
-      supablock.fs_type = 0;
-      supablock.data_blocks = TOTAL_DATA_BLOCKS;
-      supablock.i_list = 1;
-      //init the root i-node here
-      inode_t *root = &inodes_table.table[0];
-      memcpy(&root->path,"/",1);
-      root->st_mode = S_IFDIR;
-      root->size = 0;
-      root->links = 2;
-      root->created = time(NULL);
-      root->blocks = 0;
-      root->type = TYPE_DIRECTORY;  
-      set_inode_bit(0,1); // set the bit map for root
-      if (block_write(0, &supablock) > 0)
-        log_msg("\nInit(): Super Block is written in the file\n");
+	fprintf(stderr, "YAO-----Init\n");
+	fprintf(stderr, "in bb-init\n");
+	log_msg("\nsfs_init()\n");
+	disk_open((SFS_DATA)->diskfile);
+	int in;
+	//Data Structure
+	for (in = 0; in < TOTAL_INODE_NUMBER; in++) {
+		fd_table[in].id = in;
+		fd_table[in].inode_id = -1;
+		inode_table[in].id = in;
+		int j;
+		for (j = 0; j<15; j++) {
+			inode_table[in].data_blocks[j] = -1;
+		}
+		memset(inode_table[in].path, 0, 64*sizeof(char));
+	}
+	memset(inodes_bm,0,TOTAL_INODE_NUMBER/8);
+	memset(block_bm, 0, TOTAL_DATA_BLOCKS/8);
+	//Pushing everything in diskfile
+	//If there us no SFS in the diskfile
 
-      if(block_write(1, &inodes_bm)>0)
-        log_msg("\nInit(): inode bitmap is written in the file\n");
+	char *buf = (char*) malloc(BLOCK_SIZE);
 
-      if(block_write(2, &block_bm)>0)
-        log_msg("\nInit(): block bitmap is written in the file\n");
+	// initialize superblock etc here in file
+	supablock.inodes = TOTAL_INODE_NUMBER;
+	supablock.fs_type = 0;
+	supablock.data_blocks = TOTAL_DATA_BLOCKS;
+	supablock.i_list = 1;
 
-      int i = 0;
-      uint8_t *buffer = malloc(BLOCK_SIZE);
-      for(; i < 128; i++)
-      {
-        memcpy(buffer, &inodes_table.table[i], sizeof(struct inode));
-        if(block_write(i+3, buffer) <= 0) {
-          log_msg("\nFailed to write block %d\n", i);
-        }else{
-          log_msg("\nSucceed to write block %d\n", i);
-        }
-      }
-      free(buffer);
-      // fprintf(stderr, "YAO-----Init Done\n");
-    log_conn(conn);
-    log_fuse_context(fuse_get_context());
-    return SFS_DATA;
+	//init the root i-node here
+	inode_t *root = &inode_table[0];
+	memcpy(&root->path,"/",1);
+	root->st_mode = S_IFDIR;
+	root->size = 0;
+	root->links = 2;
+	root->created = time(NULL);
+	root->blocks = 0;
+	root->type = TYPE_DIRECTORY;
+
+	set_inode_bit(0, 1); // set the bit map for root
+
+	if (block_write(0, &supablock) > 0)
+		log_msg("\nInit(): Super Block is written in the file\n");
+
+	if(block_write(1, &inodes_bm) > 0)
+		log_msg("\nInit(): inode bitmap is written in the file\n");
+
+	if(block_write(2, &block_bm) > 0)
+		log_msg("\nInit(): block bitmap is written in the file\n");
+
+	int i = 0;
+	uint8_t *buffer = malloc(BLOCK_SIZE);
+	for(; i < 128; i++)
+	{
+		memcpy(buffer, &inode_table[i], sizeof(struct inode));
+
+		if(block_write(i+3, buffer) <= 0) {
+			log_msg("\nFailed to write block %d\n", i);
+		}else {
+			log_msg("\nSucceed to write block %d\n", i);
+		}
+	}
+	free(buffer);
+
+	log_conn(conn);
+	log_fuse_context(fuse_get_context());
+
+	return SFS_DATA;
 }
 
 
@@ -265,7 +269,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     int inode = find_inode_with_path(path);
     if(inode!=-1)
     {
-      inode_t *tmp = &inodes_table.table[inode];
+      inode_t *tmp = &inode_table[inode];
       // fprintf(stderr, "YAO Attr-----found:%s\n",tmp->path);
       statbuf->st_mode = tmp->st_mode;
       statbuf->st_ctime = tmp->created;
@@ -302,11 +306,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     if(i == -1){
       //Find Free Inode
       i =0;
-      int num;
-      for(;i<inodes_bm.size;i++){
-      if(get_bit(*inodes_bm.bitmap, i) == 0){
-      num=i;}
-      }
+      int num = find_next_inode();
       struct inode *tmp = malloc(sizeof(struct inode));
       tmp->id = num;
       tmp->size = 0;
@@ -320,13 +320,13 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
       else{
         tmp->type = TYPE_FILE;
       }
-      memcpy(&inodes_table.table[num], tmp, sizeof(struct inode));
-      struct inode *in = &inodes_table.table[num];
+      memcpy(&inode_table[num], tmp, sizeof(struct inode));
+      struct inode *in = &inode_table[num];
       set_inode_bit(num, 1);
       free(tmp);
       block_write(1, &inodes_bm);
       uint8_t *buffer = malloc(BLOCK_SIZE);
-      memcpy(buffer, &inodes_table.table[i], sizeof(struct inode));
+      memcpy(buffer, &inode_table[i], sizeof(struct inode));
       if(block_write(i+3, buffer) <= 0) {
           retstat = -EEXIST;}
       free(buffer);
