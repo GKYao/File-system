@@ -253,19 +253,18 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 {
     int retstat = 0;
     char fpath[PATH_MAX];
-   log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
+    log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
     path, statbuf);
     // fprintf(stderr, "YAO Attr-----start\n");
     int inode = find_inode_with_path(path);
-    if(inode!=-1)
-    {
+    if (inode != -1) {
       inode_t *tmp = &inode_table[inode];
       // fprintf(stderr, "YAO Attr-----found:%s\n",tmp->path);
       statbuf->st_mode = tmp->st_mode;
       statbuf->st_ctime = tmp->created;
       statbuf->st_size = tmp->size;
       statbuf->st_blocks = tmp->blocks;
-    }else{
+    } else {
       log_msg("\n\nInode not found for path: %s\n\n", path);
       retstat = -ENOENT;
     }
