@@ -160,7 +160,7 @@ int find_next_free(unsigned char bitmap[]) {
  */
 void *sfs_init(struct fuse_conn_info *conn)
 {
-	fprintf(stderr, "YAO-----Init\n");
+	//fprintf(stderr, "YAO-----Init\n");
 	fprintf(stderr, "in bb-init\n");
 	log_msg("\nsfs_init()\n");
 	disk_open((SFS_DATA)->diskfile);
