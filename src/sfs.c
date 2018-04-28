@@ -93,7 +93,6 @@ void set_nth_bit(unsigned char *bitmap, int idx)
 	bitmap[idx / 8] |= 1 << (idx % 8);
 }
 
-
 void clear_nth_bit(unsigned char *bitmap, int idx)
 {   
 	bitmap[idx / 8] &= ~(1 << (idx % 8));
@@ -121,10 +120,10 @@ int find_inode_with_path(const char* path)
 	return -1;
 }
 
-int get_bit(unsigned char data, int bit) {
+int get_bit(unsigned char dataByte, int bit) {
 	if (bit > 7) return -1;
 	byte_t thisByte;
-	thisByte.byte = data;
+	thisByte.byte = dataByte;
 	int thisBit;
 	switch (bit) {
 		case 0: thisBit = thisByte.bits.bit0; break;
@@ -142,12 +141,15 @@ int get_bit(unsigned char data, int bit) {
 }
 
 int find_next_inode() {
-	int i, j;
+	int i, j, num;
+	num = 0;
 	for (i = 0; i < sizeof(inodes_bm); i++) {
-
+		unsigned char bmByte = inodes_bm[i];
 		for (j = 0; j < 8; j++) {
-
+			if (get_bit(bmByte, j) == 0) return num;
+			num++;
 		}
+		num++;
 	}
 	return -1;
 }
