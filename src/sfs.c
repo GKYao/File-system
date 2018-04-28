@@ -305,9 +305,10 @@ int sfs_unlink(const char *path)
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
 	int retstat = 0;
-	fi->fh = open(path, fi->flags);
 	log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
 			path, fi);
+
+
 	return retstat;
 }
 
