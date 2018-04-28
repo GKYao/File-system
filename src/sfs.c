@@ -34,19 +34,15 @@
 //////////////////////////////////////////////////////////USR///////////////////////////////////////////////////////
 
 
-
-typedef struct inode inode_t;
-typedef struct file_descriptor fd_t;
-struct superblock
-{
+typedef struct superblock {
 	int inodes;
 	int fs_type;
 	int data_blocks;
 	int i_list;
-};
+} superblock;
 
-struct inode
-{//size equal to 512->one block
+typedef struct inode_t {
+//size equal to 512->one block
 	int id;
 	int size;
 	int type;
@@ -57,42 +53,31 @@ struct inode
 	unsigned int data_blocks[15];
 	time_t created, modified;
 	char unusedspace[340];
-};
+} inode_t;
 
-
-struct i_list{ 
-	inode_t table[TOTAL_INODE_NUMBER];
-};
-
-
-struct i_bitmap
+typedef struct i_bitmap
 {
 	unsigned char bitmap[TOTAL_INODE_NUMBER/8];
 	int size;
-};
+} i_bitmap;
 
-struct block_bitmap
+typedef struct block_bitmap
 {
 	unsigned char bitmap[TOTAL_DATA_BLOCKS/8];
 	int size;
-};
+} block_bitmap;
 
 
-struct file_descriptor{
+typedef struct file_descriptor{
 	int id;
 	int inode_id;
-};
+} fd_t;
 
-struct fd_table{
-	fd_t table[TOTAL_INODE_NUMBER];
-};
-
-
-struct superblock supablock;
-struct i_bitmap inodes_bm;
-struct block_bitmap block_bm;
-struct i_list inodes_table;
-struct fd_table fd;
+superblock supablock;
+i_bitmap inodes_bm;
+block_bitmap block_bm;
+inode_t inode_table[TOTAL_INODE_NUMBER];
+fd_t fd_table[TOTAL_INODE_NUMBER];
 
 ///////////////////////////////////////////////////////////
 //
@@ -136,11 +121,15 @@ int find_inode_with_path(const char* path)
 	int i = 0;
 	while(i<TOTAL_INODE_NUMBER)
 	{
-		if(strcmp(inodes_table.table[i].path, path) == 0){
+		if(strcmp(inode_table[i].path, path) == 0){
 			return i;
 		}
 		i++;
 	}
+	return -1;
+}
+int find_next_inode() {
+
 	return -1;
 }
 void *sfs_init(struct fuse_conn_info *conn)
@@ -152,14 +141,14 @@ void *sfs_init(struct fuse_conn_info *conn)
 	int in;
 	//Data Structure
 	for (in = 0; in < TOTAL_INODE_NUMBER; in++) {
-		fd.table[in].id = in;
-		fd.table[in].inode_id = -1;
-		inodes_table.table[in].id = in;
+		fd_table[in].id = in;
+		fd_table[in].inode_id = -1;
+		inode_table[in].id = in;
 		int j;
 		for (j = 0; j<15; j++) {
-			inodes_table.table[in].data_blocks[j] = -1;
+			inode_table[in].data_blocks[j] = -1;
 		}
-		memset(inodes_table.table[in].path, 0, 64*sizeof(char));
+		memset(inode_table[in].path, 0, 64*sizeof(char));
 	}
 	memset(inodes_bm.bitmap,0,TOTAL_INODE_NUMBER/8);
 	memset(block_bm.bitmap, 0, TOTAL_DATA_BLOCKS/8);
@@ -176,7 +165,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	supablock.data_blocks = TOTAL_DATA_BLOCKS;
 	supablock.i_list = 1;
 	//init the root i-node here
-	inode_t *root = &inodes_table.table[0];
+	inode_t *root = &inode_table[0];
 	memcpy(&root->path,"/",1);
 	root->st_mode = S_IFDIR;
 	root->size = 0;
@@ -200,7 +189,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	uint8_t *buffer = malloc(BLOCK_SIZE);
 	for(; i < 128; i++)
 	{
-		memcpy(buffer, &inodes_table.table[i], sizeof(struct inode));
+		memcpy(buffer, &inode_table[i], sizeof(struct inode));
 
 		if(block_write(i+3, buffer) <= 0) {
 			log_msg("\nFailed to write block %d\n", i);
@@ -245,7 +234,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 	int inode = find_inode_with_path(path);
 	if(inode!=-1)
 	{
-		inode_t *tmp = &inodes_table.table[inode];
+		inode_t *tmp = &inode_table[inode];
 		statbuf->st_mode = tmp->st_mode;
 		statbuf->st_nlink = tmp->links;
 		statbuf->st_ctime = tmp->created;
@@ -277,8 +266,11 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	int retstat = 0;
 	log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
 			path, mode, fi);
+	int inode = find_inode_with_path(path);
 
 
+	retstat = open(path, fi->flags, mode);
+	fi->fh = retstat;
 	return retstat;
 }
 
@@ -305,10 +297,10 @@ int sfs_unlink(const char *path)
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
 	int retstat = 0;
+	retstat = open(path, fi->flags);
+	fi->fh = retstat;
 	log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
 			path, fi);
-
-
 	return retstat;
 }
 
