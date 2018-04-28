@@ -269,7 +269,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	int inode = find_inode_with_path(path);
 
 
-	retstat = open(path, fi->flags, mode);
 	fi->fh = retstat;
 	return retstat;
 }
@@ -297,8 +296,6 @@ int sfs_unlink(const char *path)
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
 	int retstat = 0;
-	retstat = open(path, fi->flags);
-	fi->fh = retstat;
 	log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
 			path, fi);
 	return retstat;
