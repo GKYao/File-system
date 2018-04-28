@@ -39,7 +39,7 @@ typedef struct superblock {
 	int fs_type;
 	int data_blocks;
 	int i_list;
-} superblock;
+} superblock_t;
 
 typedef struct inode_t {
 //size equal to 512->one block
@@ -55,29 +55,16 @@ typedef struct inode_t {
 	char unusedspace[340];
 } inode_t;
 
-typedef struct i_bitmap
-{
-	unsigned char bitmap[TOTAL_INODE_NUMBER/8];
-	int size;
-} i_bitmap;
-
-typedef struct block_bitmap
-{
-	unsigned char bitmap[TOTAL_DATA_BLOCKS/8];
-	int size;
-} block_bitmap;
-
-
 typedef struct file_descriptor{
 	int id;
 	int inode_id;
 } fd_t;
 
-superblock supablock;
-i_bitmap inodes_bm;
-block_bitmap block_bm;
+superblock_t supablock;
 inode_t inode_table[TOTAL_INODE_NUMBER];
 fd_t fd_table[TOTAL_INODE_NUMBER];
+unsigned char inodes_bm[TOTAL_INODE_NUMBER/8];
+unsigned char block_bm[TOTAL_DATA_BLOCKS/8];
 
 ///////////////////////////////////////////////////////////
 //
@@ -85,16 +72,6 @@ fd_t fd_table[TOTAL_INODE_NUMBER];
 // come indirectly from /usr/include/fuse.h
 //
 
-/**
- * Initialize filesystem
- *
- * The return value will passed in the private_data field of
- * fuse_context to all file operations and as a parameter to the
- * destroy() method.
- *
- * Introduced in version 2.3
- * Changed in version 2.6
- */
 void set_nth_bit(unsigned char *bitmap, int idx)
 {   
 	bitmap[idx / 8] |= 1 << (idx % 8);
@@ -110,10 +87,10 @@ void clear_nth_bit(unsigned char *bitmap, int idx)
 void set_inode_bit(int index, int bit)
 {
 	if(bit == 1){
-		set_nth_bit(inodes_bm.bitmap, index);
+		set_nth_bit(inodes_bm, index);
 	}
 	else
-		clear_nth_bit(inodes_bm.bitmap, index);
+		clear_nth_bit(inodes_bm, index);
 }
 
 int find_inode_with_path(const char* path)
@@ -128,10 +105,29 @@ int find_inode_with_path(const char* path)
 	}
 	return -1;
 }
-int find_next_inode() {
 
+int find_next_inode() {
+	int i;
+	for (i = 0; i < inodes_bm; i++) {
+
+	}
 	return -1;
 }
+
+int find_next_data_block(){
+	return -1;
+}
+
+/**
+ * Initialize filesystem
+ *
+ * The return value will passed in the private_data field of
+ * fuse_context to all file operations and as a parameter to the
+ * destroy() method.
+ *
+ * Introduced in version 2.3
+ * Changed in version 2.6
+ */
 void *sfs_init(struct fuse_conn_info *conn)
 {
 	fprintf(stderr, "YAO-----Init\n");
@@ -150,10 +146,8 @@ void *sfs_init(struct fuse_conn_info *conn)
 		}
 		memset(inode_table[in].path, 0, 64*sizeof(char));
 	}
-	memset(inodes_bm.bitmap,0,TOTAL_INODE_NUMBER/8);
-	memset(block_bm.bitmap, 0, TOTAL_DATA_BLOCKS/8);
-	inodes_bm.size = TOTAL_INODE_NUMBER;
-	block_bm.size = TOTAL_DATA_BLOCKS;
+	memset(inodes_bm,0,TOTAL_INODE_NUMBER/8);
+	memset(block_bm, 0, TOTAL_DATA_BLOCKS/8);
 	//Pushing everything in diskfile
 	//If there us no SFS in the diskfile
 
@@ -164,6 +158,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	supablock.fs_type = 0;
 	supablock.data_blocks = TOTAL_DATA_BLOCKS;
 	supablock.i_list = 1;
+
 	//init the root i-node here
 	inode_t *root = &inode_table[0];
 	memcpy(&root->path,"/",1);
@@ -174,7 +169,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	root->blocks = 0;
 	root->type = TYPE_DIRECTORY;
 
-	set_inode_bit(0,1); // set the bit map for root
+	set_inode_bit(0, 1); // set the bit map for root
 
 	if (block_write(0, &supablock) > 0)
 		log_msg("\nInit(): Super Block is written in the file\n");
