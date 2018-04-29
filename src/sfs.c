@@ -492,6 +492,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		retstat += cur;
 		write_buf += cur;
 	}
+	inode->blocks = total_blocks;
 	return retstat;
 }
 
