@@ -154,13 +154,11 @@ int get_next_inode()
 
 int get_next_block()
 {
-	log_msg("gnb\n");
 	int i, j, num;
 	num = 0;
 	for (i = 0; i < TOTAL_BLOCKS; i++) {
 		unsigned char bmByte = block_bm[i];
 		for (j = 0; j < 8; j++) {
-			log_msg("thisBit: %d %d, %x\n", num, j, block_bm[i]);
 			if (get_bit(bmByte, j) == 0) return num;
 			num++;
 		}
@@ -468,7 +466,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	start_block = inode->data_blocks[0];
 	if (blocks_to_read > 1) {
 		char *read_block = malloc(BLOCK_SIZE);
-		memset(read_block, 0, strlen(read_block));
+		memset(read_block, 0, BLOCK_SIZE);
 		retstat += block_read(start_block, read_block);
 		read_block += offset;
 		memcpy(buf, read_block, (strlen(read_block) - offset));
@@ -513,8 +511,12 @@ log_msg("totalW: %d\n", (size_to_read + size + offset));
 	if (inode->blocks != 0) {
 		retstat = sfs_read(path, total_write, size, 0, fi);
 		if (retstat < 0) return retstat;
+
+		log_msg("SL1: %d\n", strlen(buf));
 		memcpy(total_write, buf + (inode->size + offset), strlen(buf));
 	}
+
+	log_msg("SL2: %d\n", strlen(buf));
 	if (inode->size < (strlen(buf) + offset)) {
 		inode->size += (strlen(buf) + offset);
 		//(total_write + inode->size) = '\0';
@@ -546,7 +548,7 @@ log_msg("retstat: %d\n", retstat);
 	inode->blocks = total_blocks;
 	free(write_buf);
 	free(total_write);
-	set_nth_bit(&inode_bm, num);
+	set_nth_bit(inode_bm, num);
 	block_write(1, &inode_bm);
 	block_write(2, &block_bm);
 	printf("write-end-retstat: %d\n", retstat);
