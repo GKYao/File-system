@@ -443,10 +443,12 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	int retstat = 0;
 	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
+	inode_t *inode = inode_table[get_inode_from_path(path)];
+	int i, blocks_to_read;
+	blocks_to_read = (size + offset)/BLOCK_SIZE;
+	for (i = 0; i < blocks_to_read; i++) {
 
-	int inode = get_inode_from_path(path);
-
-
+	}
 
 	return retstat;
 }
