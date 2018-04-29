@@ -503,8 +503,8 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		inode->data_blocks[i] = get_next_free(block_bm);
 	}
 	start_block = inode->data_blocks[0];
+	char *write_buf = (char *) malloc(BLOCK_SIZE);
 	for (i = start_block; i < total_blocks + start_block; i++) {
-		char *write_buf = (char *) malloc(BLOCK_SIZE);
 		memset(write_buf, 0, BLOCK_SIZE);
 		memcpy(write_buf, buf, strlen(write_buf));
 		int cur;
