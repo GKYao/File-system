@@ -463,7 +463,9 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	if (inode->blocks <= 0) return -1;
 	int i, blocks_to_read, start_block;
 	blocks_to_read = (size + offset)/BLOCK_SIZE;
+log_msg("BTR: %d\n", blocks_to_read);
 	start_block = inode->data_blocks[0];
+log_msg("read1: %d\n", inode->data_blocks[0]);
 	if (blocks_to_read > 1) {
 		char *read_block = malloc(BLOCK_SIZE);
 		memset(read_block, 0, BLOCK_SIZE);
@@ -476,13 +478,12 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 		}
 		retstat += block_read(i, read_block);
 		memcpy(buf, read_block, size%BLOCK_SIZE);
-		free(read_block);
+log_msg("here: %d\n", retstat);
 	}
 	else {
 		retstat += (block_read(start_block, buf) - offset);
 		buf += offset;
 	}
-	printf("read-retstat: %d\n.", retstat);
 	return retstat;
 }
 
@@ -501,57 +502,44 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
 	int num = get_inode_from_path(path);
-log_msg("iNum: %d\n", num);
 	inode_t *inode = &inode_table[num];
 	int i, j, start_block, size_to_read, cur;
 	size_to_read = inode->size;
+log_msg("STR: %d\n", size_to_read);
 	char *total_write = malloc(size_to_read + size + offset);
-log_msg("totalW: %d\n", (size_to_read + size + offset));
 	memset(total_write, 0, (size_to_read + size + offset));
 	if (inode->blocks != 0) {
 		retstat = sfs_read(path, total_write, size, 0, fi);
 		if (retstat < 0) return retstat;
-
-		log_msg("SL1: %d\n", strlen(buf));
 		memcpy(total_write, buf + (inode->size + offset), strlen(buf));
 	}
-
-	log_msg("SL2: %d\n", strlen(buf));
 	if (inode->size < (strlen(buf) + offset)) {
 		inode->size += (strlen(buf) + offset);
 		//(total_write + inode->size) = '\0';
 	}
 	int total_blocks = ceil((double)inode->size / 512);
-log_msg("tb: %d\n", total_blocks);
-log_msg("iB: %d\n", inode->blocks);
 	int blocks_needed = total_blocks - inode->blocks;
 	for (i = inode->blocks; i < total_blocks; i++) {
 		inode->data_blocks[i] = get_next_block();
-		log_msg("tDB: %d\n", get_next_block());
+log_msg("this block: %d\n", inode->data_blocks[i]);
 	}
-log_msg("bNeeded: %d\n", blocks_needed);
-log_msg("i->dB %d\n", inode->data_blocks[0]);
 	start_block = inode->data_blocks[0];
 	char *write_buf = (char *) malloc(BLOCK_SIZE);
 	for (i = start_block; i < total_blocks + start_block; i++) {
 		memset(write_buf, 0, BLOCK_SIZE);
 		memcpy(write_buf, buf, strlen(buf));
-		log_msg("SL: %d\n", strlen(buf));
 		int numFill = BLOCK_SIZE - strlen(buf);
 		cur = block_write(0, write_buf) - numFill;
 		retstat += cur;
 		write_buf += cur;
 		set_nth_bit(block_bm, i);
 	}
-log_msg("cur: %d\n", cur);
-log_msg("retstat: %d\n", retstat);
 	inode->blocks = total_blocks;
-	free(write_buf);
-	free(total_write);
+//	free(write_buf);
+//	free(total_write);
 	set_nth_bit(inode_bm, num);
 	block_write(1, &inode_bm);
 	block_write(2, &block_bm);
-	printf("write-end-retstat: %d\n", retstat);
 	return retstat;
 }
 
