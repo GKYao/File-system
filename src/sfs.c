@@ -485,7 +485,10 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		char *write_buf = (char *) malloc(BLOCK_SIZE);
 		memset(write_buf, 0, BLOCK_SIZE);
 		memcpy(write_buf, buf, strlen(buf));
-		buf += block_write(i, write_buf);
+		int cur;
+		cur = block_write(i, write_buf);
+		retstat += cur;
+		buf += cur;
 	}
 
 	return retstat;
