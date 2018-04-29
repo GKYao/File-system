@@ -20,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <math.h>
 
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
@@ -136,13 +137,30 @@ int get_bit(unsigned char dataByte, int bit)
 	return thisBit;
 }
 
-int get_next_free(unsigned char bitmap[])
+int get_next_inode()
 {
 	int i, j, num;
 	num = 0;
-	for (i = 0; i < strlen(bitmap); i++) {
-		unsigned char bmByte = bitmap[i];
+	for (i = 0; i < TOTAL_INODE_NUMBER; i++) {
+		unsigned char bmByte = inode_bm[i];
 		for (j = 0; j < 8; j++) {
+			if (get_bit(bmByte, j) == 0) return num;
+			num++;
+		}
+		num++;
+	}
+	return -1;
+}
+
+int get_next_block()
+{
+	log_msg("gnb\n");
+	int i, j, num;
+	num = 0;
+	for (i = 0; i < TOTAL_BLOCKS; i++) {
+		unsigned char bmByte = block_bm[i];
+		for (j = 0; j < 8; j++) {
+			log_msg("thisBit: %d %d, %x\n", num, j, block_bm[i]);
 			if (get_bit(bmByte, j) == 0) return num;
 			num++;
 		}
@@ -340,7 +358,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 			path, mode, fi);
 	int i = get_inode_from_path(path);
 	if(i == -1) {
-		int num = get_next_free(inode_bm);
+		int num = get_next_inode();
 		inode_t *tmp = malloc(sizeof(inode_t));
 		tmp->id = num;
 		tmp->size = 0;
@@ -485,43 +503,50 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
 	int num = get_inode_from_path(path);
-log_msg("0\n");
+log_msg("iNum: %d\n", num);
 	inode_t *inode = &inode_table[num];
 	int i, j, start_block, size_to_read, cur;
 	size_to_read = inode->size;
 	char *total_write = malloc(size_to_read + size + offset);
-	memset(total_write, 0, strlen(total_write));
-log_msg("1\n");
+log_msg("totalW: %d\n", (size_to_read + size + offset));
+	memset(total_write, 0, (size_to_read + size + offset));
 	if (inode->blocks != 0) {
 		retstat = sfs_read(path, total_write, size, 0, fi);
 		if (retstat < 0) return retstat;
 		memcpy(total_write, buf + (inode->size + offset), strlen(buf));
-		if (inode->size < (strlen(buf) + offset)) {
-			inode->size += (strlen(buf) + offset);
-			//(total_write + inode->size) = '\0';
-		}
 	}
-log_msg("2\n");
-	int total_blocks = inode->size / 512;
+	if (inode->size < (strlen(buf) + offset)) {
+		inode->size += (strlen(buf) + offset);
+		//(total_write + inode->size) = '\0';
+	}
+	int total_blocks = ceil((double)inode->size / 512);
+log_msg("tb: %d\n", total_blocks);
+log_msg("iB: %d\n", inode->blocks);
 	int blocks_needed = total_blocks - inode->blocks;
 	for (i = inode->blocks; i < total_blocks; i++) {
-		inode->data_blocks[i] = get_next_free(block_bm);
+		inode->data_blocks[i] = get_next_block();
+		log_msg("tDB: %d\n", get_next_block());
 	}
+log_msg("bNeeded: %d\n", blocks_needed);
+log_msg("i->dB %d\n", inode->data_blocks[0]);
 	start_block = inode->data_blocks[0];
 	char *write_buf = (char *) malloc(BLOCK_SIZE);
 	for (i = start_block; i < total_blocks + start_block; i++) {
 		memset(write_buf, 0, BLOCK_SIZE);
-		memcpy(write_buf, buf, strlen(write_buf));
-		cur = block_write(i, write_buf);
+		memcpy(write_buf, buf, strlen(buf));
+		log_msg("SL: %d\n", strlen(buf));
+		int numFill = BLOCK_SIZE - strlen(buf);
+		cur = block_write(0, write_buf) - numFill;
 		retstat += cur;
 		write_buf += cur;
 		set_nth_bit(block_bm, i);
 	}
-log_msg("3\n");
+log_msg("cur: %d\n", cur);
+log_msg("retstat: %d\n", retstat);
 	inode->blocks = total_blocks;
 	free(write_buf);
 	free(total_write);
-	set_nth_bit(inode_bm, num);
+	set_nth_bit(&inode_bm, num);
 	block_write(1, &inode_bm);
 	block_write(2, &block_bm);
 	printf("write-end-retstat: %d\n", retstat);
