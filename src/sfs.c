@@ -347,16 +347,21 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		tmp->blocks = 0;
 		tmp->st_mode = mode;
 		tmp->created = time(NULL);
-		memcpy(tmp->path, path,64);
+		memcpy(tmp->path, path, 64);
 		if(S_ISDIR(mode)) {
 			tmp->type = TYPE_DIRECTORY;
 		}
 		else{
 			tmp->type = TYPE_FILE;
 		}
+	    int count = 0;
+	    while(count != 15){
+	      tmp->data_blocks[count]=-1;
+	      count++;
+	    }
 		memcpy(&inode_table[num], tmp, sizeof(struct inode_t));
 		struct inode_t *in = &inode_table[num];
-		set_inode_bit(num, 1);
+		set_nth_bit(inode_bm, num);
 		free(tmp);
 		block_write(1, &inode_bm);
 		uint8_t *buffer = malloc(BLOCK_SIZE);
@@ -366,7 +371,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	} else{
 		retstat = -EEXIST;
 	}
-	return retstat;
+    struct inode_t *tmp= &inode_table[1];
+    return retstat;
 }
 
 /** Remove a file */
