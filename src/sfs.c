@@ -354,11 +354,11 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		else{
 			tmp->type = TYPE_FILE;
 		}
-	    int count = 0;
-	    while(count != 15){
-	      tmp->data_blocks[count]=-1;
-	      count++;
-	    }
+		int count = 0;
+		while(count != 15){
+			tmp->data_blocks[count]=-1;
+			count++;
+		}
 		memcpy(&inode_table[num], tmp, sizeof(struct inode_t));
 		struct inode_t *in = &inode_table[num];
 		set_nth_bit(inode_bm, num);
@@ -371,8 +371,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	} else{
 		retstat = -EEXIST;
 	}
-    struct inode_t *tmp= &inode_table[1];
-    return retstat;
+	struct inode_t *tmp= &inode_table[1];
+	return retstat;
 }
 
 /** Remove a file */
