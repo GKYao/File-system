@@ -486,7 +486,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	inode_t *inode = inode_table[get_inode_from_path(path)];
 	int i, j, start_block, size_to_read, cur;
 	size_to_read = inode->size;
-	char *total_write = malloc(size_to_read + size + offset + 1);
+	char *total_write = malloc(size_to_read + size + offset);
 	memset(total_write, 0, strlen(total_write));
 	if (inode->blocks != 0) {
 		retstat = sfs_read(path, total_write, size, 0, fi);
@@ -494,7 +494,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		memcpy(total_write, buf + (inode->size + offset), strlen(buf));
 		if (inode->size < (strlen(buf) + offset)) {
 			inode->size += (strlen(buf) + offset);
-			(total_write + inode->size) = '\0';
+			//(total_write + inode->size) = '\0';
 		}
 	}
 	int total_blocks = inode->size / 512;
