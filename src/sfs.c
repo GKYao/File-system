@@ -444,12 +444,28 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
 	inode_t *inode = inode_table[get_inode_from_path(path)];
-	int i, blocks_to_read;
+	if (inode->blocks <= 0) return -1;
+	int i, blocks_to_read, start_block;
 	blocks_to_read = (size + offset)/BLOCK_SIZE;
-	for (i = 0; i < blocks_to_read; i++) {
-
+	start_block = inode->data_blocks[0];
+	if (blocks_to_read > 1) {
+		char *read_block = malloc(BLOCK_SIZE);
+		memset(read_block, 0, strlen(read_block));
+		retstat += block_read(start_block, read_block);
+		read_block += offset;
+		memcpy(buf, read_block, (strlen(read_block) - offset));
+		for (i = start_block+1; i < blocks_to_read+start_block-1; i++) {
+			retstat += block_read(i, read_block);
+			memcpy(buf, read_block, strlen(read_block));
+		}
+		retstat += block_read(i, read_block);
+		memcpy(buf, read_block, size%BLOCK_SIZE);
+		free(read_block);
 	}
-
+	else {
+		retstat += (block_read(start_block, buf) - offset);
+		buf += offset;
+	}
 	return retstat;
 }
 
