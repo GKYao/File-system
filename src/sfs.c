@@ -336,39 +336,47 @@ int sfs_getattr(const char *path, struct stat *statbuf)
  * Introduced in version 2.5
  */
 int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
-{
-	int retstat = 0;
-	log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
-			path, mode, fi);
-	int i = find_inode_with_path(path);
-	if(i == -1) {
-		int num = find_next_free(inode_bm);
-		struct inode_t *tmp = malloc(sizeof(struct inode_t));
-		tmp->id = num;
-		tmp->size = 0;
-		tmp->blocks = 0;
-		tmp->st_mode = mode;
-		tmp->created = time(NULL);
-		memcpy(tmp->path, path,64);
-		if(S_ISDIR(mode)) {
-			tmp->type = TYPE_DIRECTORY;
-		}
-		else{
-			tmp->type = TYPE_FILE;
-		}
-		memcpy(&inode_table[num], tmp, sizeof(struct inode_t));
-		struct inode_t *in = &inode_table[num];
-		set_inode_bit(num, 1);
-		free(tmp);
-		block_write(1, &inode_bm);
-		uint8_t *buffer = malloc(BLOCK_SIZE);
-		memcpy(buffer, &inode_table[i], sizeof(struct inode_t));
-		if(block_write(i+3, buffer) <= 0) retstat = -EEXIST;
-		free(buffer);
-	} else{
-		retstat = -EEXIST;
-	}
-	return retstat;
+{     
+    int retstat = 0;
+    log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
+      path, mode, fi);
+    int i = find_inode_with_path(path);
+    if(i == -1) {
+      int num = find_next_free(inode_bm);
+      struct inode_t *tmp = malloc(sizeof(struct inode_t));
+      tmp->id = num;
+      tmp->size = 0;
+      tmp->blocks = 0;
+      tmp->st_mode = mode;
+      tmp->created = time(NULL);
+      memcpy(tmp->path, path,64);
+      // fprintf(stderr, "Yao---file%s made at %d\n",tmp->path,num);
+      if(S_ISDIR(mode)) {
+        tmp->type = TYPE_DIRECTORY;
+      }
+      else{
+        tmp->type = TYPE_FILE;
+      }
+      int count=0;
+      while(count!=15){
+        tmp->data_blocks[count]=-1;
+        count++;
+      }
+      memcpy(&inode_table[num], tmp, sizeof(struct inode_t));
+      struct inode_t *in = &inode_table[num];
+      set_nth_bit(inode_bm,num);
+      free(tmp);
+      block_write(1, &inode_bm);
+      uint8_t *buffer = malloc(BLOCK_SIZE);
+      memcpy(buffer, &inode_table[i], sizeof(struct inode_t));
+      if(block_write(i+3, buffer) <= 0) {
+          retstat = -EEXIST;}
+      free(buffer);
+    }else{
+      retstat = -EEXIST;
+    }
+    struct inode_t *tmp= &inode_table[1];
+    return retstat;
 }
 
 /** Remove a file */
