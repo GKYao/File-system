@@ -470,7 +470,6 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	char *total_write = malloc((inode->blocks*BLOCK_SIZE) + size + 1);
 	if (inode->blocks != 0) {
 		//do read here
-		//start_block = inode->data_blocks[0];
 		//memcpy(total_write, buf+inode->size, strlen(buf));
 		//inode->size += strlen(buf);
 		//*(total_write+inode->size) = '\0';
