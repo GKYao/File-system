@@ -466,26 +466,26 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
 	inode_t *inode = inode_table[get_inode_from_path(path)];
-	int i, j;
-	//memcpy(total_write, buf, strlen(buf));
+	int i, j, start_block;
+	char *total_write = malloc((inode->blocks*BLOCK_SIZE) + size + 1);
 	if (inode->blocks != 0) {
 		//do read here
+		//start_block = inode->data_blocks[0];
+		//memcpy(total_write, buf+inode->size, strlen(buf));
 		//inode->size += strlen(buf);
-		//
+		//*(total_write+inode->size) = '\0';
 	}
 	int total_blocks = inode->size / 512;
 	int blocks_needed = total_blocks - inode->blocks;
 	for (i = inode->blocks; i < total_blocks; i++){
 		inode->data_blocks[i] = get_next_free(block_bm);
 	}
-	int start_block;
-	for (i = 0; i < total_blocks; i++){
-		for (j = 0; j < BLOCK_SIZE; j++) {
-			char *writeBuf = (char *) malloc(BLOCK_SIZE);
-			memset(writeBuf, 0, BLOCK_SIZE);
-			memcpy(writeBuf, buf, strlen(buf));
-
-		}
+	start_block = inode->data_blocks[0];
+	for (i = start_block; i < total_blocks + start_block; i++){
+		char *write_buf = (char *) malloc(BLOCK_SIZE);
+		memset(write_buf, 0, BLOCK_SIZE);
+		memcpy(write_buf, buf, strlen(buf));
+		buf += block_write(i, write_buf);
 	}
 
 	return retstat;
