@@ -140,7 +140,7 @@ int get_next_free(unsigned char bitmap[])
 {
 	int i, j, num;
 	num = 0;
-	for (i = 0; i < sizeof(bitmap); i++) {
+	for (i = 0; i < strlen(bitmap); i++) {
 		unsigned char bmByte = bitmap[i];
 		for (j = 0; j < 8; j++) {
 			if (get_bit(bmByte, j) == 0) return num;
@@ -218,7 +218,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	int in;
 	//Data Structure
 	for (in = 0; in < TOTAL_INODE_NUMBER; in++) {
-		memset(inode_table[in], 0, sizeof(inode_t));
+		memset(&inode_table[in], 0, sizeof(inode_t));
 		int j;
 		for (j = 0; j < 15; j++) {
 			inode_table[in].data_blocks[j] = -1;
@@ -262,7 +262,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	int i;
 	uint8_t *buffer = malloc(BLOCK_SIZE);
 	for(i = 0; i < 128; i++) {
-		memcpy(buffer, &inode_table[i], sizeof(struct inode_t));
+		memcpy(buffer, &inode_table[i], sizeof(inode_t));
 
 		if(block_write(i+3, buffer) <= 0) {
 			log_msg("\nFailed to write block %d\n", i);
@@ -341,7 +341,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	int i = get_inode_from_path(path);
 	if(i == -1) {
 		int num = get_next_free(inode_bm);
-		struct inode_t *tmp = malloc(sizeof(struct inode_t));
+		inode_t *tmp = malloc(sizeof(inode_t));
 		tmp->id = num;
 		tmp->size = 0;
 		tmp->blocks = 0;
@@ -359,19 +359,19 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 			tmp->data_blocks[count]=-1;
 			count++;
 		}
-		memcpy(&inode_table[num], tmp, sizeof(struct inode_t));
-		struct inode_t *in = &inode_table[num];
+		memcpy(&inode_table[num], tmp, sizeof(inode_t));
+		inode_t *in = &inode_table[num];
 		set_nth_bit(inode_bm, num);
 		free(tmp);
 		block_write(1, &inode_bm);
 		uint8_t *buffer = malloc(BLOCK_SIZE);
-		memcpy(buffer, &inode_table[i], sizeof(struct inode_t));
+		memcpy(buffer, &inode_table[i], sizeof(inode_t));
 		if(block_write(i+3, buffer) <= 0) retstat = -EEXIST;
 		free(buffer);
 	} else{
 		retstat = -EEXIST;
 	}
-	struct inode_t *tmp= &inode_table[1];
+	inode_t *tmp= &inode_table[1];
 	return retstat;
 }
 
@@ -443,7 +443,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	int retstat = 0;
 	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
-	inode_t *inode = inode_table[get_inode_from_path(path)];
+	inode_t *inode = &inode_table[get_inode_from_path(path)];
 	if (inode->blocks <= 0) return -1;
 	int i, blocks_to_read, start_block;
 	blocks_to_read = (size + offset)/BLOCK_SIZE;
@@ -483,7 +483,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	int retstat = 0;
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
-	inode_t *inode = inode_table[get_inode_from_path(path)];
+	inode_t *inode = &inode_table[get_inode_from_path(path)];
 	int i, j, start_block, size_to_read, cur;
 	size_to_read = inode->size;
 	char *total_write = malloc(size_to_read + size + offset);
