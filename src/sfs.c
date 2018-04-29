@@ -466,6 +466,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 		retstat += (block_read(start_block, buf) - offset);
 		buf += offset;
 	}
+	printf("read-retstat: %d\n.", retstat);
 	return retstat;
 }
 
@@ -483,11 +484,14 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	int retstat = 0;
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
-	inode_t *inode = &inode_table[get_inode_from_path(path)];
+	int num = get_inode_from_path(path);
+log_msg("0\n");
+	inode_t *inode = &inode_table[num];
 	int i, j, start_block, size_to_read, cur;
 	size_to_read = inode->size;
 	char *total_write = malloc(size_to_read + size + offset);
 	memset(total_write, 0, strlen(total_write));
+log_msg("1\n");
 	if (inode->blocks != 0) {
 		retstat = sfs_read(path, total_write, size, 0, fi);
 		if (retstat < 0) return retstat;
@@ -497,6 +501,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 			//(total_write + inode->size) = '\0';
 		}
 	}
+log_msg("2\n");
 	int total_blocks = inode->size / 512;
 	int blocks_needed = total_blocks - inode->blocks;
 	for (i = inode->blocks; i < total_blocks; i++) {
@@ -510,10 +515,16 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		cur = block_write(i, write_buf);
 		retstat += cur;
 		write_buf += cur;
+		set_nth_bit(block_bm, i);
 	}
+log_msg("3\n");
 	inode->blocks = total_blocks;
 	free(write_buf);
 	free(total_write);
+	set_nth_bit(inode_bm, num);
+	block_write(1, &inode_bm);
+	block_write(2, &block_bm);
+	printf("write-end-retstat: %d\n", retstat);
 	return retstat;
 }
 
