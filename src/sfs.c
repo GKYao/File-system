@@ -484,7 +484,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
 	inode_t *inode = inode_table[get_inode_from_path(path)];
-	int i, j, start_block, size_to_read;
+	int i, j, start_block, size_to_read, cur;
 	size_to_read = inode->size;
 	char *total_write = malloc(size_to_read + size + offset + 1);
 	memset(total_write, 0, strlen(total_write));
@@ -507,7 +507,6 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	for (i = start_block; i < total_blocks + start_block; i++) {
 		memset(write_buf, 0, BLOCK_SIZE);
 		memcpy(write_buf, buf, strlen(write_buf));
-		int cur;
 		cur = block_write(i, write_buf);
 		retstat += cur;
 		write_buf += cur;
