@@ -96,7 +96,9 @@ void set_nth_bit(unsigned char *bitmap, int idx) { bitmap[idx / 8] |= 1 << (idx 
 
 void clear_nth_bit(unsigned char *bitmap, int idx) { bitmap[idx / 8] &= ~(1 << (idx % 8)); }
 
-int get_nth_bit(unsigned char *bitmap, int idx) { return (bitmap[idx / 8] >> (idx % 8)) & 1; }
+int get_nth_bit(unsigned char *bitmap, int idx) {
+log_msg("bit %d: %d\n", idx, bitmap[idx / 8] >> (idx % 8));
+	return (bitmap[idx / 8] >> (idx % 8)) & 1; }
 
 void set_inode_bit(int index, int bit)
 {
@@ -218,7 +220,10 @@ void *sfs_init(struct fuse_conn_info *conn)
 {
 	int ii;
 	for (ii = 0; ii < 100; ii++) {
-		log_msg("block %d: %d\n", ii, get_nth_bit(block_bm, ii));
+log_msg("block %d: %d\n", ii, get_nth_bit(block_bm, ii));
+	}
+	for (ii = 0; ii < 100; ii++) {
+log_msg("inode %d: %d\n", ii, get_nth_bit(inode_bm, ii));
 	}
 	fprintf(stderr, "in bb-init\n");
 	log_msg("\nsfs_init()\n");
@@ -400,7 +405,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		block_write(1, &inode_bm);
 		uint8_t *buffer = malloc(BLOCK_SIZE);
 		memcpy(buffer, &inode_table[i], sizeof(inode_t));
-		//if(block_write(num+3, buffer) <= 0) //retstat = -EEXIST;
+		if(block_write(num+3, buffer) <= 0) { } //retstat = -EEXIST;?
 		block_read(num + 3, buffer);
 		in = (inode_t*) buffer;		//what does this do??
 		free(tmp);
@@ -595,6 +600,7 @@ log_msg("total_blocks: %d\n", total_blocks);
 	int blocks_needed = total_blocks - inode->blocks;
 log_msg("inode->blocks: %d\n", inode->blocks);
 	for (i = inode->blocks; i < total_blocks; i++) {
+log_msg("this block: %d\n", inode->data_blocks[i]);
 		inode->data_blocks[i] = get_next_block();
 log_msg("this block: %d\n", inode->data_blocks[i]);
 	}
