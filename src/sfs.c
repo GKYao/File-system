@@ -58,30 +58,8 @@ typedef struct inode {
 	char unusedspace[340];
 } inode_t;
 
-typedef struct file_descriptor {
-	int id;
-	int inode_id;
-} fd_t;
-
-typedef struct byte_fields {
-	unsigned char bit0:1;
-	unsigned char bit1:1;
-	unsigned char bit2:1;
-	unsigned char bit3:1;
-	unsigned char bit4:1;
-	unsigned char bit5:1;
-	unsigned char bit6:1;
-	unsigned char bit7:1;
-} byte_fields;
-
-typedef union byte_t {
-	unsigned char byte;
-	byte_fields bits;
-} byte_t;
-
 superblock_t supablock;
 inode_t inode_table[TOTAL_INODE_NUMBER];
-fd_t fd_table[TOTAL_INODE_NUMBER];
 int fd[128];
 unsigned char inode_bm[TOTAL_INODE_NUMBER/8];
 unsigned char block_bm[TOTAL_DATA_BLOCKS/8];
@@ -215,6 +193,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//If there is no SFS in the diskfile
 	char *buf = (char*) malloc(BLOCK_SIZE);
 	if(block_read(0, buf) <= 0) {
+log_msg("New\n");
 		fprintf(stderr, "YAO----INIT New");
 		supablock.inodes = TOTAL_INODE_NUMBER;
 		supablock.fs_type = 0;
@@ -250,8 +229,10 @@ void *sfs_init(struct fuse_conn_info *conn)
 				log_msg("\nSucceed to write block %d\n", i);
 			}
 		}
-		free(buffer);}
+		free(buffer);
+	}
 	else {
+log_msg("Old\n");
 		fprintf(stderr, "YAO----LOAD old\n");
 		uint8_t *buffer = malloc(BLOCK_SIZE*sizeof(uint8_t));
 		if(block_read(1, buffer) > 0) {
@@ -260,13 +241,12 @@ void *sfs_init(struct fuse_conn_info *conn)
 		}
 
 		if(block_read(2, buffer) > 0) {
-			memcpy(&block_bm, buffer, sizeof(block_bm));
+			memcpy(&block_bm, buffer, TOTAL_DATA_BLOCKS/8);
 			memset(buffer, 0, BLOCK_SIZE);
 		}
 		int i;
-		for(i = 0; i < 128; i++) {
-			inode_t *temp = malloc(sizeof(inode_t));
-			int x = block_read(i+3, temp);
+		inode_t *temp = malloc(sizeof(inode_t));
+		for(i = 0; i < TOTAL_INODE_NUMBER; i++) {
 			if(block_read(i+3, temp) > 0) {
 				inode_table[i].id = temp->id;
 				inode_table[i].size = temp->size;
@@ -278,6 +258,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 				memcpy(&inode_table[i].path, temp->path, 64);
 			}
 		}
+		free(temp);
 		free(buffer);
 	}
 
@@ -477,15 +458,9 @@ int sfs_release(const char *path, struct fuse_file_info *fi)
 			path, fi);
 	int i = get_inode_from_path(path);
 	if(i != -1)	{
-		if(fd[i] == 1) {
-			fd[i] = 0;
-		}
-		else {
-			retstat= -1;
-		}
-	} else {
-		retstat = -1;
-	}
+		if(fd[i] == 1) { fd[i] = 0;	}
+		else { retstat= -1;	}
+	} else { retstat = -1; }
 
 	return retstat;
 }
@@ -588,7 +563,7 @@ log_msg("size_to_alloc: %d\n", size_to_alloc);
 	inode->blocks = total_blocks;
 	free(write_buf);
 	set_nth_bit(inode_bm, num);
-	block_write(1, &inode_bm);
+	block_write(1, inode_bm);
 	block_write(2, &block_bm);
 	return retstat;
 }
@@ -745,7 +720,13 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 int sfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
 	int retstat = 0;
-
+	log_msg("\nsfs_release(path=\"%s\", fi=0x%08x)\n",
+			path, fi);
+	int i = get_inode_from_path(path);
+	if(i != -1)	{
+		if(fd[i] == 1) { fd[i] = 0;	}
+		else { retstat= -1;	}
+	} else { retstat = -1; }
 
 	return retstat;
 }
