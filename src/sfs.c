@@ -241,7 +241,7 @@ log_msg("Old\n");
 		}
 
 		if(block_read(2, buffer) > 0) {
-			memcpy(&block_bm, buffer, TOTAL_DATA_BLOCKS/8);
+			memcpy(&block_bm, buffer, sizeof(block_bm));
 			memset(buffer, 0, BLOCK_SIZE);
 		}
 		int i;
@@ -353,7 +353,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		memcpy(&inode_table[num], tmp, sizeof(inode_t));
 		inode_t *in = &inode_table[num];
 		set_nth_bit(inode_bm, num);
-		block_write(1, &inode_bm);
+		block_write(1, inode_bm);
 		uint8_t *buffer = malloc(BLOCK_SIZE);
 		memcpy(buffer, &inode_table[i], sizeof(inode_t));
 		if(block_write(num+3, buffer) <= 0) { } //retstat = -EEXIST;?
@@ -491,7 +491,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
 	char *read_buf = buf;
 	for (i = start_block; i < start_block + blocks_to_read; i++) {
-		bytes_read = block_read(i, read_buf);
+		bytes_read = block_read(i+3, read_buf);
 		retstat += bytes_read;
 		read_buf += bytes_read;
 	}
@@ -553,7 +553,7 @@ log_msg("size_to_alloc: %d\n", size_to_alloc);
 	char *current_write = write_buf;
 	retstat = 0;
 	for (i = start_block; i < total_blocks + start_block; i++) {
-		bytes_written = block_write(i, current_write);
+		bytes_written = block_write(i+3, current_write);
 		current_write += bytes_written;
 		size_to_write -= bytes_written;
 		set_nth_bit(block_bm, i);
@@ -720,7 +720,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 int sfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
 	int retstat = 0;
-	log_msg("\nsfs_release(path=\"%s\", fi=0x%08x)\n",
+	log_msg("\nsfs_releasedir(path=\"%s\", fi=0x%08x)\n",
 			path, fi);
 	int i = get_inode_from_path(path);
 	if(i != -1)	{
