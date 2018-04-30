@@ -517,7 +517,6 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	inode_t *inode = &inode_table[get_inode_from_path(path)];
 
 	int i, blocks_to_read, start_block, bytes_read;
-//	blocks_to_read = ceil((size + offset)/BLOCK_SIZE);
 	blocks_to_read = ceil(size/BLOCK_SIZE);
 	if (inode->blocks <= 0) { return -1; }	//0 should be block_size, will change after I make sure this works
 	start_block = inode->data_blocks[0];
@@ -536,16 +535,6 @@ log_msg("bytes_read: %d\n", bytes_read);
 	}
 	//Do I need to handle offsets in read??
 
-/*
-		read_block += offset;
-		memcpy(buf, read_block, (strlen(read_block) - offset));
-		for (i = start_block+1; i < blocks_to_read+start_block-1; i++) {
-			retstat += block_read(i, read_block);
-			memcpy(buf, read_block, strlen(read_block));
-		}
-		retstat += block_read(i, read_block);
-		memcpy(buf, read_block, size%BLOCK_SIZE);
-*/
 log_msg("here: %d\n", retstat);
 
 	free(read_block);
