@@ -580,29 +580,33 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 			path, buf, size, offset, fi);
 	int num = get_inode_from_path(path);
 	inode_t *inode = &inode_table[num];
-	int i, j, start_block, size_to_read, cur;
-	size_to_read = inode->size;
-log_msg("STR: %d\n", size_to_read);
-	char *total_write = malloc(size_to_read + size + offset);
-	memset(total_write, 0, (size_to_read + size + offset));
-	if (offset > BLOCK_SIZE) {
-		retstat = sfs_read(path, total_write, size, 0, fi);
-		if (retstat < 0) return retstat;
-		memcpy(total_write, buf + (inode->size + offset), strlen(buf));
+	int i, j, start_block, size_to_read, size_to_write, cur;
+	if (offset > 0) {
+		size_to_read = inode->size;
+		size_to_write = inode->size + size;
+		log_msg("STR: %d\n", size_to_read);
+		char *total_write = malloc(size_to_write);
+		memset(total_write, 0, size_to_write);
+		retstat = sfs_read(path, total_write, size_to_read, 0, fi);
+		if (retstat < 0) { return retstat; }
+		memcpy(total_write + offset, buf, size);
 	}
-	if (inode->size < (strlen(buf) + offset)) {
-		inode->size = (strlen(buf) + offset);
+	else {
+		size_to_read = 0;
+		size_to_write = size;
+	}
+
+	if (inode->size < (size + offset)) {
+		inode->size = (size + offset);
 		//(total_write + inode->size) = '\0';
 	}
 log_msg("inode->size: %d\n", inode->size);
 	int total_blocks = ceil((double)inode->size / 512);
 log_msg("total_blocks: %d\n", total_blocks);
 	int blocks_needed = total_blocks - inode->blocks;
-log_msg("inode->blocks: %d\n", inode->blocks);
+log_msg("blocks_needed: %d\n", blocks_needed);
 	for (i = inode->blocks; i < total_blocks; i++) {
-log_msg("this block: %d\n", inode->data_blocks[i]);
 		inode->data_blocks[i] = get_next_block();
-log_msg("this block: %d\n", inode->data_blocks[i]);
 	}
 	start_block = inode->data_blocks[0];
 	char *write_buf = (char *) malloc(BLOCK_SIZE);
