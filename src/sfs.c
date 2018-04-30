@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <math.h>
+#include <time.h>
 
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
@@ -203,7 +204,8 @@ void *sfs_init(struct fuse_conn_info *conn)
 		root->st_mode = S_IFDIR;
 		root->size = 0;
 		root->links = 2;
-		root->created = time(NULL);
+		time_t now;
+		root->created = time(&now);
 		root->blocks = 0;
 		root->type = TYPE_DIRECTORY;
 		set_nth_bit(inode_bm, 0);
@@ -335,7 +337,8 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		tmp->size = 0;
 		tmp->blocks = 0;
 		tmp->st_mode = mode;
-		tmp->created = time(NULL);
+		time_t now;
+		tmp->created = time(&now);
 		memcpy(tmp->path, path, 64);
 		if(S_ISDIR(mode)) {
 			tmp->type = TYPE_DIRECTORY;
@@ -547,6 +550,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	int numFill;
 	char *current_write = write_buf;
 	retstat = 0;
+
 	for (i = start_block; i < total_blocks + start_block; i++) {
 		bytes_written = block_write(i+3, current_write);
 		current_write += bytes_written;
@@ -556,6 +560,8 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	}
 
 	inode->blocks = total_blocks;
+	time_t now;
+	inode->modified = time(&now);
 	free(write_buf);
 	set_nth_bit(inode_bm, num);
 	block_write(1, inode_bm);
