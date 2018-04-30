@@ -536,7 +536,6 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	}
 	memcpy(write_buf + offset, buf, size);
 
-	if (size_to_write != inode->size + size) { log_msg("INODE SIZE ERROR IN WRITE\n"); }
 	inode->size = size_to_write;
 	int total_blocks = ceil((double)inode->size / (double) 512);
 	int blocks_needed = total_blocks - inode->blocks;
