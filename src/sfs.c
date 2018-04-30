@@ -96,9 +96,7 @@ void set_nth_bit(unsigned char *bitmap, int idx) { bitmap[idx / 8] |= 1 << (idx 
 
 void clear_nth_bit(unsigned char *bitmap, int idx) { bitmap[idx / 8] &= ~(1 << (idx % 8)); }
 
-int get_nth_bit(unsigned char *bitmap, int idx) {
-log_msg("bit %d: %d\n", idx, bitmap[idx / 8] >> (idx % 8));
-	return (bitmap[idx / 8] >> (idx % 8)) & 1; }
+int get_nth_bit(unsigned char *bitmap, int idx) { return (bitmap[idx / 8] >> (idx % 8)) & 1; }
 
 void set_inode_bit(int index, int bit)
 {
@@ -118,27 +116,6 @@ int get_inode_from_path(const char* path)
 		}
 	}
 	return -1;
-}
-
-int get_bit(unsigned char dataByte, int bit)
-{
-	if (bit > 7) return -1;
-	byte_t thisByte;
-	thisByte.byte = dataByte;
-	int thisBit;
-	switch (bit) {
-	case 0: thisBit = thisByte.bits.bit0; break;
-	case 1: thisBit = thisByte.bits.bit1; break;
-	case 2: thisBit = thisByte.bits.bit2; break;
-	case 3: thisBit = thisByte.bits.bit3; break;
-	case 4: thisBit = thisByte.bits.bit4; break;
-	case 5: thisBit = thisByte.bits.bit5; break;
-	case 6: thisBit = thisByte.bits.bit6; break;
-	case 7: thisBit = thisByte.bits.bit7; break;
-	default : thisBit = -1; break;
-	}
-
-	return thisBit;
 }
 
 int get_next_inode()
@@ -536,17 +513,30 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	int retstat = 0;
 	log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
+
 	inode_t *inode = &inode_table[get_inode_from_path(path)];
-	if (inode->blocks <= 0) return -1;
-	int i, blocks_to_read, start_block;
-	blocks_to_read = (size + offset)/BLOCK_SIZE;
-log_msg("BTR: %d\n", blocks_to_read);
+
+	int i, blocks_to_read, start_block, bytes_read;
+//	blocks_to_read = ceil((size + offset)/BLOCK_SIZE);
+	blocks_to_read = ceil(size/BLOCK_SIZE);
+	if (inode->blocks <= 0) { return -1; }	//0 should be block_size, will change after I make sure this works
 	start_block = inode->data_blocks[0];
-log_msg("read1: %d\n", inode->data_blocks[0]);
-	if (blocks_to_read > 1) {
-		char *read_block = malloc(BLOCK_SIZE);
-		memset(read_block, 0, BLOCK_SIZE);
-		retstat += block_read(start_block, read_block);
+
+log_msg("BTR: %d\n", blocks_to_read);
+log_msg("start_block: %d\n", inode->data_blocks[0]);
+
+	char *read_block = malloc(BLOCK_SIZE);
+	memset(read_block, 0, BLOCK_SIZE);
+
+	for (i = start_block; i < start_block + blocks_to_read; i++) {
+		bytes_read = block_read(i, read_block);
+log_msg("bytes_read: %d\n", bytes_read);
+		retstat += bytes_read;
+		memcpy(buf, read_block, bytes_read);
+	}
+	//Do I need to handle offsets in read??
+
+/*
 		read_block += offset;
 		memcpy(buf, read_block, (strlen(read_block) - offset));
 		for (i = start_block+1; i < blocks_to_read+start_block-1; i++) {
@@ -555,12 +545,10 @@ log_msg("read1: %d\n", inode->data_blocks[0]);
 		}
 		retstat += block_read(i, read_block);
 		memcpy(buf, read_block, size%BLOCK_SIZE);
+*/
 log_msg("here: %d\n", retstat);
-	}
-	else {
-		retstat += (block_read(start_block, buf) - offset);
-		buf += offset;
-	}
+
+	free(read_block);
 	return retstat;
 }
 
@@ -578,50 +566,66 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	int retstat = 0;
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
+
+	char *write_buf;
+	int i, j, start_block, size_to_read, size_to_write, bytes_written;
 	int num = get_inode_from_path(path);
 	inode_t *inode = &inode_table[num];
-	int i, j, start_block, size_to_read, size_to_write, cur;
-	if (offset > 0) {
-		size_to_read = inode->size;
-		size_to_write = inode->size + size;
-		log_msg("STR: %d\n", size_to_read);
-		char *total_write = malloc(size_to_write);
-		memset(total_write, 0, size_to_write);
-		retstat = sfs_read(path, total_write, size_to_read, 0, fi);
-		if (retstat < 0) { return retstat; }
-		memcpy(total_write + offset, buf, size);
-	}
-	else {
+
+	if (offset == 0) {
 		size_to_read = 0;
 		size_to_write = size;
+	} else {
+		size_to_read = inode->size;
+		size_to_write = size_to_read + size;
+		log_msg("STR: %d\n", size_to_read);
 	}
+	write_buf = (char *) malloc(size_to_write);
+	memset(write_buf, 0, size_to_write);
+	if (offset != 0) {
+		retstat = sfs_read(path, write_buf, size_to_read, 0, fi);
+		if (retstat < 0) { return retstat; }
+	}
+	memcpy(write_buf + offset, buf, size);
 
-	if (inode->size < (size + offset)) {
-		inode->size = (size + offset);
-		//(total_write + inode->size) = '\0';
-	}
+	if (size_to_write != inode->size + size) { log_msg("INODE SIZE ERROR IN WRITE\n"); }
+	inode->size = size_to_write;
+
 log_msg("inode->size: %d\n", inode->size);
 	int total_blocks = ceil((double)inode->size / 512);
 log_msg("total_blocks: %d\n", total_blocks);
 	int blocks_needed = total_blocks - inode->blocks;
 log_msg("blocks_needed: %d\n", blocks_needed);
+
 	for (i = inode->blocks; i < total_blocks; i++) {
 		inode->data_blocks[i] = get_next_block();
 	}
+
 	start_block = inode->data_blocks[0];
-	char *write_buf = (char *) malloc(BLOCK_SIZE);
+	int numFill;
+	char *current_write = write_buf;
+	retstat = 0;
 	for (i = start_block; i < total_blocks + start_block; i++) {
-		memset(write_buf, 0, BLOCK_SIZE);
-		memcpy(write_buf, buf, strlen(buf));
-		int numFill = BLOCK_SIZE - strlen(buf);
-		cur = block_write(0, write_buf) - numFill;
-		retstat += cur;
-		write_buf += cur;
+		numFill = BLOCK_SIZE - size_to_write;
+		if (numFill > 0) {
+			char *filler_buf = (char*) malloc(BLOCK_SIZE);
+			memcpy(filler_buf, current_write, size_to_write);
+			memset((filler_buf + size_to_write), 0, numFill);
+			bytes_written = block_write(i, filler_buf);
+			free(filler_buf);
+		}
+		else {
+			bytes_written = block_write(i, current_write);
+			current_write += bytes_written;
+		}
+		log_msg("%d bytes written\n", bytes_written);
+		size_to_write -= bytes_written;
 		set_nth_bit(block_bm, i);
+		retstat += bytes_written;
 	}
+
 	inode->blocks = total_blocks;
-//	free(write_buf);
-//	free(total_write);
+	free(write_buf);
 	set_nth_bit(inode_bm, num);
 	block_write(1, &inode_bm);
 	block_write(2, &block_bm);
@@ -666,7 +670,7 @@ int sfs_rmdir(const char *path)
 	if(i != -1) {
 		int j;
 		for(j = 0; j < TOTAL_INODE_NUMBER; j++) {
-			if(get_bit(*inode_bm, j) != 0 && j != i) {
+			if((get_nth_bit(inode_bm, j) != 0) && (j != i)) {
 				if(check_parent_dir(path, j) != -1) {
 					return -ENOTEMPTY;
 				}
