@@ -551,8 +551,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		size_to_read = inode->size;
 		size_to_write = size_to_read + size;
 	}
-	if (size_to_write <= BLOCK_SIZE) { size_to_alloc = BLOCK_SIZE; }
-	else { size_to_alloc = (BLOCK_SIZE + (size_to_write%BLOCK_SIZE)); }
+	size_to_alloc = ceil((double)size_to_write / (double)BLOCK_SIZE) * BLOCK_SIZE;
 log_msg("size_to_alloc: %d\n", size_to_alloc);
 
 	write_buf = (char *) malloc(size_to_alloc);
