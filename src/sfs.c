@@ -524,20 +524,19 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 log_msg("BTR: %d\n", blocks_to_read);
 log_msg("start_block: %d\n", inode->data_blocks[0]);
 
-	char *read_block = malloc(BLOCK_SIZE);
-	memset(read_block, 0, BLOCK_SIZE);
+	char *read_buf = buf;
 
 	for (i = start_block; i < start_block + blocks_to_read; i++) {
-		bytes_read = block_read(i, read_block);
+		bytes_read = block_read(i, read_buf);
 log_msg("bytes_read: %d\n", bytes_read);
+log_msg("data read: %s\n", read_buf);
 		retstat += bytes_read;
-		memcpy(buf, read_block, bytes_read);
+		read_buf += bytes_read;
 	}
 	//Do I need to handle offsets in read??
 
-log_msg("here: %d\n", retstat);
+log_msg("here: %d, %s\n", retstat, buf);
 
-	free(read_block);
 	return retstat;
 }
 
@@ -552,6 +551,7 @@ log_msg("here: %d\n", retstat);
 int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi)
 {
+log_msg("data to write: %s\n", buf);
 	int retstat = 0;
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
@@ -591,22 +591,24 @@ log_msg("blocks_needed: %d\n", blocks_needed);
 	}
 
 	start_block = inode->data_blocks[0];
+log_msg("start_block: %d\n", start_block);
 	int numFill;
 	char *current_write = write_buf;
 	retstat = 0;
 	for (i = start_block; i < total_blocks + start_block; i++) {
 		numFill = BLOCK_SIZE - size_to_write;
-		if (numFill > 0) {
+		/*if (numFill > 0) {
 			char *filler_buf = (char*) malloc(BLOCK_SIZE);
 			memcpy(filler_buf, current_write, size_to_write);
 			memset((filler_buf + size_to_write), 0, numFill);
 			bytes_written = block_write(i, filler_buf);
 			free(filler_buf);
-		}
-		else {
-			bytes_written = block_write(i, current_write);
+		}*/
+//		else {
+log_msg("current_write: %s\n", current_write);
+		bytes_written = block_write(i, current_write);
 			current_write += bytes_written;
-		}
+//		}
 		log_msg("%d bytes written\n", bytes_written);
 		size_to_write -= bytes_written;
 		set_nth_bit(block_bm, i);
