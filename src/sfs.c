@@ -564,7 +564,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		size_to_read = 0;
 		size_to_write = size;
 	} else {
-		size_to_read = inode->size - 1;
+		size_to_read = inode->size;
 		size_to_write = size_to_read + size;
 		log_msg("STR: %d\n", size_to_read);
 	}
@@ -575,7 +575,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		log_msg("data read in write: %d, %s\n", retstat, write_buf);
 		if (retstat < 0) { return retstat; }
 	}
-	memcpy(write_buf + offset - 1, buf, size);
+	memcpy(write_buf + offset, buf, size);
 log_msg("data to write: %s\n", write_buf);
 
 	if (size_to_write != inode->size + size) { log_msg("INODE SIZE ERROR IN WRITE\n"); }
