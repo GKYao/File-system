@@ -517,7 +517,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	inode_t *inode = &inode_table[get_inode_from_path(path)];
 
 	int i, blocks_to_read, start_block, bytes_read;
-	blocks_to_read = ceil(size/BLOCK_SIZE);
+	blocks_to_read = ceil((double)size / (double)BLOCK_SIZE);
 	if (inode->blocks <= 0) { return -1; }	//0 should be block_size, will change after I make sure this works
 	start_block = inode->data_blocks[0];
 
@@ -551,7 +551,6 @@ log_msg("here: %d, %s\n", retstat, buf);
 int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi)
 {
-log_msg("data to write: %s\n", buf);
 	int retstat = 0;
 	log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 			path, buf, size, offset, fi);
@@ -565,7 +564,7 @@ log_msg("data to write: %s\n", buf);
 		size_to_read = 0;
 		size_to_write = size;
 	} else {
-		size_to_read = inode->size;
+		size_to_read = inode->size - 1;
 		size_to_write = size_to_read + size;
 		log_msg("STR: %d\n", size_to_read);
 	}
@@ -573,15 +572,17 @@ log_msg("data to write: %s\n", buf);
 	memset(write_buf, 0, size_to_write);
 	if (offset != 0) {
 		retstat = sfs_read(path, write_buf, size_to_read, 0, fi);
+		log_msg("data read in write: %d, %s\n", retstat, write_buf);
 		if (retstat < 0) { return retstat; }
 	}
-	memcpy(write_buf + offset, buf, size);
+	memcpy(write_buf + offset - 1, buf, size);
+log_msg("data to write: %s\n", write_buf);
 
 	if (size_to_write != inode->size + size) { log_msg("INODE SIZE ERROR IN WRITE\n"); }
 	inode->size = size_to_write;
 
 log_msg("inode->size: %d\n", inode->size);
-	int total_blocks = ceil((double)inode->size / 512);
+	int total_blocks = ceil((double)inode->size / (double) 512);
 log_msg("total_blocks: %d\n", total_blocks);
 	int blocks_needed = total_blocks - inode->blocks;
 log_msg("blocks_needed: %d\n", blocks_needed);
