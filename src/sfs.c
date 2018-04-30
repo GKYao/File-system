@@ -193,7 +193,6 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//If there is no SFS in the diskfile
 	char *buf = (char*) malloc(BLOCK_SIZE);
 	if(block_read(0, buf) <= 0) {
-log_msg("New\n");
 		fprintf(stderr, "YAO----INIT New");
 		supablock.inodes = TOTAL_INODE_NUMBER;
 		supablock.fs_type = 0;
@@ -232,7 +231,6 @@ log_msg("New\n");
 		free(buffer);
 	}
 	else {
-log_msg("Old\n");
 		fprintf(stderr, "YAO----LOAD old\n");
 		uint8_t *buffer = malloc(BLOCK_SIZE*sizeof(uint8_t));
 		if(block_read(1, buffer) > 0) {
@@ -528,7 +526,6 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		size_to_write = size_to_read + size;
 	}
 	size_to_alloc = ceil((double)size_to_write / (double)BLOCK_SIZE) * BLOCK_SIZE;
-log_msg("size_to_alloc: %d\n", size_to_alloc);
 
 	write_buf = (char *) malloc(size_to_alloc);
 	memset(write_buf, 0, size_to_alloc);
