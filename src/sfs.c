@@ -531,7 +531,6 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	memset(write_buf, 0, size_to_alloc);
 	if (offset != 0) {
 		retstat = sfs_read(path, write_buf, size_to_read, 0, fi);
-		log_msg("data read in write: %d, %s\n", retstat, write_buf);
 		if (retstat < 0) { return retstat; }
 	}
 	memcpy(write_buf + offset, buf, size);
