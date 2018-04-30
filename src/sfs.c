@@ -195,13 +195,6 @@ int check_parent_dir(const char* path,int i)
  */
 void *sfs_init(struct fuse_conn_info *conn)
 {
-	int ii;
-	for (ii = 0; ii < 100; ii++) {
-log_msg("block %d: %d\n", ii, get_nth_bit(block_bm, ii));
-	}
-	for (ii = 0; ii < 100; ii++) {
-log_msg("inode %d: %d\n", ii, get_nth_bit(inode_bm, ii));
-	}
 	fprintf(stderr, "in bb-init\n");
 	log_msg("\nsfs_init()\n");
 	disk_open((SFS_DATA)->diskfile);
@@ -357,7 +350,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	int i = get_inode_from_path(path);
 	if(i == -1) {
 		int num = get_next_inode();
-	log_msg("num: %d\n", num);
 		inode_t *tmp = malloc(sizeof(inode_t));
 		tmp->id = num;
 		tmp->size = 0;
@@ -521,21 +513,13 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	if (inode->blocks <= 0) { return -1; }	//0 should be block_size, will change after I make sure this works
 	start_block = inode->data_blocks[0];
 
-log_msg("BTR: %d\n", blocks_to_read);
-log_msg("start_block: %d\n", inode->data_blocks[0]);
-
 	char *read_buf = buf;
-
 	for (i = start_block; i < start_block + blocks_to_read; i++) {
 		bytes_read = block_read(i, read_buf);
-log_msg("bytes_read: %d\n", bytes_read);
-log_msg("data read: %s\n", read_buf);
 		retstat += bytes_read;
 		read_buf += bytes_read;
 	}
 	//Do I need to handle offsets in read??
-
-log_msg("here: %d, %s\n", retstat, buf);
 
 	return retstat;
 }
@@ -556,7 +540,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 			path, buf, size, offset, fi);
 
 	char *write_buf;
-	int i, j, start_block, size_to_read, size_to_write, bytes_written;
+	int i, j, start_block, size_to_read, size_to_write, size_to_alloc, bytes_written;
 	int num = get_inode_from_path(path);
 	inode_t *inode = &inode_table[num];
 
@@ -566,51 +550,36 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	} else {
 		size_to_read = inode->size;
 		size_to_write = size_to_read + size;
-		log_msg("STR: %d\n", size_to_read);
 	}
-	write_buf = (char *) malloc(size_to_write);
-	memset(write_buf, 0, size_to_write);
+	if (size_to_write <= BLOCK_SIZE) { size_to_alloc = BLOCK_SIZE; }
+	else { size_to_alloc = (BLOCK_SIZE + (size_to_write%BLOCK_SIZE)); }
+log_msg("size_to_alloc: %d\n", size_to_alloc);
+
+	write_buf = (char *) malloc(size_to_alloc);
+	memset(write_buf, 0, size_to_alloc);
 	if (offset != 0) {
 		retstat = sfs_read(path, write_buf, size_to_read, 0, fi);
 		log_msg("data read in write: %d, %s\n", retstat, write_buf);
 		if (retstat < 0) { return retstat; }
 	}
 	memcpy(write_buf + offset, buf, size);
-log_msg("data to write: %s\n", write_buf);
 
 	if (size_to_write != inode->size + size) { log_msg("INODE SIZE ERROR IN WRITE\n"); }
 	inode->size = size_to_write;
-
-log_msg("inode->size: %d\n", inode->size);
 	int total_blocks = ceil((double)inode->size / (double) 512);
-log_msg("total_blocks: %d\n", total_blocks);
 	int blocks_needed = total_blocks - inode->blocks;
-log_msg("blocks_needed: %d\n", blocks_needed);
 
 	for (i = inode->blocks; i < total_blocks; i++) {
 		inode->data_blocks[i] = get_next_block();
 	}
 
 	start_block = inode->data_blocks[0];
-log_msg("start_block: %d\n", start_block);
 	int numFill;
 	char *current_write = write_buf;
 	retstat = 0;
 	for (i = start_block; i < total_blocks + start_block; i++) {
-		numFill = BLOCK_SIZE - size_to_write;
-		/*if (numFill > 0) {
-			char *filler_buf = (char*) malloc(BLOCK_SIZE);
-			memcpy(filler_buf, current_write, size_to_write);
-			memset((filler_buf + size_to_write), 0, numFill);
-			bytes_written = block_write(i, filler_buf);
-			free(filler_buf);
-		}*/
-//		else {
-log_msg("current_write: %s\n", current_write);
 		bytes_written = block_write(i, current_write);
-			current_write += bytes_written;
-//		}
-		log_msg("%d bytes written\n", bytes_written);
+		current_write += bytes_written;
 		size_to_write -= bytes_written;
 		set_nth_bit(block_bm, i);
 		retstat += bytes_written;
