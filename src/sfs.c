@@ -508,13 +508,13 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 log_msg("STR: %d\n", size_to_read);
 	char *total_write = malloc(size_to_read + size + offset);
 	memset(total_write, 0, (size_to_read + size + offset));
-	if (inode->blocks != 0) {
+	if (offset > BLOCK_SIZE) {
 		retstat = sfs_read(path, total_write, size, 0, fi);
 		if (retstat < 0) return retstat;
 		memcpy(total_write, buf + (inode->size + offset), strlen(buf));
 	}
 	if (inode->size < (strlen(buf) + offset)) {
-		inode->size += (strlen(buf) + offset);
+		inode->size = (strlen(buf) + offset);
 		//(total_write + inode->size) = '\0';
 	}
 	int total_blocks = ceil((double)inode->size / 512);
