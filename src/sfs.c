@@ -297,6 +297,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 void sfs_destroy(void *userdata)
 {
 	log_msg("\nsfs_destroy(userdata=0x%08x)\n", userdata);
+	disk_close();
 }
 
 /** Get file attributes.
