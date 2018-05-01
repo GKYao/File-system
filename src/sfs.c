@@ -90,9 +90,6 @@ int get_inode_from_path(const char* path)
 {
 	int i;
 	for(i = 0; i < TOTAL_INODE_NUMBER; i++) {
-log_msg("GIFP: %d, %s, %d, %d, %d\n", i, inode_table[i].path, inode_table[i].size, inode_table[i].blocks, inode_table[i].data_blocks[0]);
-log_msg("IBMP: %d, %d\n", i, get_nth_bit(inode_bm, i));
-log_msg("BBMP: %d, %d\n", i, get_nth_bit(block_bm, i));
 		if(strcmp(inode_table[i].path, path) == 0){
 			return i;
 		}
@@ -179,7 +176,6 @@ int check_parent_dir(const char* path, int i)
  */
 void *sfs_init(struct fuse_conn_info *conn)
 {
-	fprintf(stderr, "in bb-init\n");
 	log_msg("\nsfs_init()\n");
 	disk_open((SFS_DATA)->diskfile);
 	int in;
@@ -199,7 +195,6 @@ void *sfs_init(struct fuse_conn_info *conn)
 	//If there is no SFS in the diskfile
 	char *buf = (char*) malloc(BLOCK_SIZE);
 	if(block_read(0, buf) <= 0) {
-		fprintf(stderr, "YAO----INIT New");
 		supablock.inodes = TOTAL_INODE_NUMBER;
 		supablock.fs_type = 0;
 		supablock.data_blocks = TOTAL_DATA_BLOCKS;
@@ -238,7 +233,6 @@ void *sfs_init(struct fuse_conn_info *conn)
 		free(buffer);
 	}
 	else {
-		fprintf(stderr, "YAO----LOAD old\n");
 		uint8_t *buffer = malloc(BLOCK_SIZE*sizeof(uint8_t));
 		if(block_read(1, buffer) > 0) {
 			memcpy(inode_bm, buffer, TOTAL_INODE_NUMBER/8);
@@ -335,7 +329,6 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 			path, mode, fi);
 	int i = get_inode_from_path(path);
 	if(i == -1) {
-log_msg("we're doing things in create\n");
 		int num = get_next_inode();
 		inode_t *tmp = malloc(sizeof(inode_t));
 		tmp->id = num;
@@ -363,9 +356,9 @@ log_msg("we're doing things in create\n");
 		block_write(1, inode_bm);
 		uint8_t *buffer = malloc(BLOCK_SIZE);
 		memcpy(buffer, &inode_table[i], sizeof(inode_t));
-		if(block_write(num+3, buffer) <= 0) { } //retstat = -EEXIST;?
+		if(block_write(num+3, buffer) <= 0) { }
 		block_read(num+3, buffer);
-		in = (inode_t*) buffer;		//what does this do??
+		in = (inode_t*) buffer;
 		free(tmp);
 		free(buffer);
 	} else{
@@ -381,29 +374,21 @@ int sfs_unlink(const char *path)
 	log_msg("sfs_unlink(path=\"%s\")\n", path);
 	int i = get_inode_from_path(path);
 	if(i == -1) {
-		// fprintf(stderr, "Yao---not found");
 		retstat = -ENOENT;
 		inode_t *tmp = &inode_table[1];
-		// fprintf(stderr, "Yao---file name:%s\n",tmp->path);
 	}
 	else {
-		// fprintf(stderr, "Yao---file found at %d \n",i );
 		inode_t *tmp = &inode_table[i];
-		// fprintf(stderr, "Yao---accessing file \n");
 		clear_nth_bit(inode_bm, tmp->id);
-		// fprintf(stderr, "Yao---clearing bit \n");
 		memset(tmp->path, 0, 64);
-		// fprintf(stderr, "Yao---memset path\n");
 		int i;
 		for(i = 0; i < 15; i++) {
 			if(tmp->data_blocks[i] != -1) {
 				//clear block bits
-				// fprintf(stderr, "Yao---clearing datablock bit%d in %d \n",tmp->data_blocks[i],i);
 				clear_nth_bit(block_bm, tmp->data_blocks[i]);
 				tmp->data_blocks[i] = -1;
 			}
 		}
-		// fprintf(stderr, "Yao---cleared data blocks \n");
 		//Write inode to disk
 		uint8_t *buffer = malloc(BLOCK_SIZE);
 		memcpy(buffer, &inode_table[i], sizeof(inode_t));
@@ -493,7 +478,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
 	int i, blocks_to_read, start_block, bytes_read;
 	blocks_to_read = ceil((double)size / (double)BLOCK_SIZE);
-	if (inode->blocks <= 0) { return -1; }	//0 should be block_size, will change after I make sure this works
+	if (inode->blocks <= 0) { return -1; }
 	start_block = inode->data_blocks[0];
 
 	char *read_buf = buf;
@@ -502,7 +487,6 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 		retstat += bytes_read;
 		read_buf += bytes_read;
 	}
-	//Do I need to handle offsets in read??
 
 	return retstat;
 }
@@ -621,23 +605,17 @@ int sfs_rmdir(const char *path)
 				}
 			}
 		}
-		// fprintf(stderr, "Yao---file found at %d \n",i );
 		inode_t *tmp = &inode_table[i];
-		// fprintf(stderr, "Yao---accessing file \n");
 		clear_nth_bit(inode_bm, tmp->id);
-		// fprintf(stderr, "Yao---clearing bit \n");
 		memset(tmp->path, 0, 64);
-		// fprintf(stderr, "Yao---memset path\n");
 		int i;
 		for(i = 0; i < 15; i++) {
 			if(tmp->data_blocks[i] != -1) {
 				//clear block bits
-				// fprintf(stderr, "Yao---clearing datablock bit%d in %d \n",tmp->data_blocks[i],i);
 				clear_nth_bit(block_bm, tmp->data_blocks[i]);
 				tmp->data_blocks[i] = -1;
 			}
 		}
-		// fprintf(stderr, "Yao---cleared data blocks \n");
 		//Write inode to disk
 		uint8_t *buffer = malloc(BLOCK_SIZE);
 		memcpy(buffer, &inode_table[i], sizeof(inode_t));
@@ -787,7 +765,7 @@ int main(int argc, char *argv[])
 	sfs_data->logfile = log_open();
 
 	// turn over control to fuse
-	fprintf(stderr, "about to call fuse_main, %s \n", sfs_data->diskfile);
+//	fprintf(stderr, "about to call fuse_main, %s \n", sfs_data->diskfile);
 	fuse_stat = fuse_main(argc, argv, &sfs_oper, sfs_data);
 	fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
 
