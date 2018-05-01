@@ -54,9 +54,11 @@ typedef struct inode_t {
 	int blocks;
 	mode_t st_mode;
 	unsigned char path[64];
-	unsigned int data_blocks[15];
+//	unsigned int data_blocks[16];
+	unsigned int data_blocks[12][12];
 	time_t created, modified;
-	char unusedspace[340];
+//	char unusedspace[340];
+	char unusedspace[(512 - ((5*sizeof(int)) + sizeof(mode_t) + (64*sizeof(unsigned char)) + (12*12*sizeof(unsigned int)) + (2*sizeof(time_t))))];
 } inode_t;
 
 superblock_t supablock;
@@ -292,11 +294,9 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 	char fpath[PATH_MAX];
 	log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
 			path, statbuf);
-	// fprintf(stderr, "YAO Attr-----start\n");
 	int inode = get_inode_from_path(path);
 	if (inode != -1) {
 		inode_t *tmp = &inode_table[inode];
-		// fprintf(stderr, "YAO Attr-----found:%s\n",tmp->path);
 		statbuf->st_mode = tmp->st_mode;
 		statbuf->st_ctime = tmp->created;
 		statbuf->st_size = tmp->size;
@@ -306,7 +306,6 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 		retstat = -ENOENT;
 	}
 	log_stat(statbuf);
-	// fprintf(stderr, "YAO Attr-----finish\n");
 	return retstat;
 }
 
@@ -531,12 +530,16 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	inode->size = size_to_write;
 	int total_blocks = ceil((double)inode->size / (double) 512);
 	int blocks_needed = total_blocks - inode->blocks;
-
-	for (i = inode->blocks; i < total_blocks; i++) {
-		inode->data_blocks[i] = get_next_block();
+	for (i = floor((double)inode->blocks / (double) 12); i < ceil((double)total_blocks / (double)12); i++) {
+		for (j = (inode->blocks - (i*12)); j < 12; j++) {
+			inode->data_blocks[i][j] = get_next_block();
+			if ((i*12)+j == total_blocks) {
+				break;
+			}
+		}
 	}
 
-	start_block = inode->data_blocks[0];
+	start_block = inode->data_blocks[0][0];
 	char *current_write = write_buf;
 
 	for (i = start_block; i < total_blocks + start_block; i++) {
@@ -576,7 +579,8 @@ int sfs_mkdir(const char *path, mode_t mode)
 		tmp->type = TYPE_DIRECTORY;
 		tmp->st_mode = mode | S_IFDIR;
 		memcpy(tmp->path, path, 64);
-		tmp->created = time(NULL);
+		time_t timer;
+		tmp->created = time(&timer);
 		memcpy(&inode_table[tmp->id], tmp, sizeof(inode_t));
 		set_nth_bit(inode_bm, tmp->id);
 		if(block_write(tmp->id+3, &inode_table[tmp->id]) <= 0) { }
@@ -609,11 +613,13 @@ int sfs_rmdir(const char *path)
 		clear_nth_bit(inode_bm, tmp->id);
 		memset(tmp->path, 0, 64);
 		int i;
-		for(i = 0; i < 15; i++) {
-			if(tmp->data_blocks[i] != -1) {
+		for(i = 0; i < 12; i++) {
+			for (j = 0; j < 12; j++) {
 				//clear block bits
-				clear_nth_bit(block_bm, tmp->data_blocks[i]);
-				tmp->data_blocks[i] = -1;
+				if(tmp->data_blocks[i][j] != -1) {
+					clear_nth_bit(block_bm, tmp->data_blocks[i][j]);
+					tmp->data_blocks[i][j] = -1;
+				}
 			}
 		}
 		//Write inode to disk
@@ -766,6 +772,9 @@ int main(int argc, char *argv[])
 
 	// turn over control to fuse
 //	fprintf(stderr, "about to call fuse_main, %s \n", sfs_data->diskfile);
+	fprintf(stderr, "int, unInt, unChar, time, mode, char[]: %d, %d, %d, %d, %d, %d\n",
+			sizeof(int), sizeof(unsigned int), sizeof(unsigned char), sizeof(time_t), sizeof(mode_t), sizeof(unsigned int[12][12]));
+	fprintf(stderr, "inode: %d\n", sizeof (inode_t));
 	fuse_stat = fuse_main(argc, argv, &sfs_oper, sfs_data);
 	fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
 
