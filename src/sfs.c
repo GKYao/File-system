@@ -476,14 +476,15 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
 	inode_t *inode = &inode_table[get_inode_from_path(path)];
 
-	int i, blocks_to_read, start_block, bytes_read;
+	int i, thisBlock, blocks_to_read, start_block, bytes_read;
 	blocks_to_read = ceil((double)size / (double)BLOCK_SIZE);
 	if (inode->blocks <= 0) { return -1; }
 	start_block = inode->data_blocks[0];
 
 	char *read_buf = buf;
-	for (i = start_block; i < start_block + blocks_to_read; i++) {
-		bytes_read = block_read(i+3+TOTAL_INODE_NUMBER, read_buf);
+	for (i = 0; i < blocks_to_read; i++) {
+		thisBlock = inode->data_blocks[i];
+		bytes_read = block_read(thisBlock+3+TOTAL_INODE_NUMBER, read_buf);
 		retstat += bytes_read;
 		read_buf += bytes_read;
 	}
@@ -507,7 +508,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 			path, buf, size, offset, fi);
 
 	char *write_buf;
-	int i, j, start_block, size_to_read, size_to_write, size_to_alloc, bytes_written;
+	int i, j, thisBlock, size_to_read, size_to_write, size_to_alloc, bytes_written;
 	int num = get_inode_from_path(path);
 	inode_t *inode = &inode_table[num];
 
@@ -529,18 +530,15 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	memcpy(write_buf + offset, buf, size);
 
 	inode->size = size_to_write;
-	int total_blocks = ceil((double)inode->size / (double) 512);
-	int blocks_needed = total_blocks - inode->blocks;
+	int blocks_to_write = ceil((double)inode->size / (double) 512);
 
-	for (i = inode->blocks; i < total_blocks; i++) {
+	for (i = inode->blocks; i < blocks_to_write; i++) {
 		inode->data_blocks[i] = get_next_block();
 	}
 
-	start_block = inode->data_blocks[0];
 	char *current_write = write_buf;
-	int thisBlock;
 
-	for (i = 0; i < blocks_needed; i++) {
+	for (i = 0; i < blocks_to_write; i++) {
 		thisBlock = inode->data_blocks[i];
 		bytes_written = block_write(thisBlock+3+TOTAL_INODE_NUMBER, current_write);
 		current_write += bytes_written;
@@ -551,7 +549,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 
 	time_t now;
 	inode->modified = time(&now);
-	inode->blocks = total_blocks;
+	inode->blocks = blocks_to_write;
 	set_nth_bit(inode_bm, num);
 	inode_table[num] = *inode;
 
