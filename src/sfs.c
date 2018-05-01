@@ -339,6 +339,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		tmp->st_mode = mode;
 		time_t now;
 		tmp->created = time(&now);
+		tmp->modified = time(&now);
 		memcpy(tmp->path, path, 64);
 		if(S_ISDIR(mode)) {
 			tmp->type = TYPE_DIRECTORY;
@@ -358,7 +359,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		uint8_t *buffer = malloc(BLOCK_SIZE);
 		memcpy(buffer, &inode_table[i], sizeof(inode_t));
 		if(block_write(num+3, buffer) <= 0) { } //retstat = -EEXIST;?
-		block_read(num + 3, buffer);
+		block_read(num+3, buffer);
 		in = (inode_t*) buffer;		//what does this do??
 		free(tmp);
 		free(buffer);
@@ -492,7 +493,7 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
 	char *read_buf = buf;
 	for (i = start_block; i < start_block + blocks_to_read; i++) {
-		bytes_read = block_read(i+3, read_buf);
+		bytes_read = block_read(i+3+TOTAL_INODE_NUMBER, read_buf);
 		retstat += bytes_read;
 		read_buf += bytes_read;
 	}
@@ -547,25 +548,29 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	}
 
 	start_block = inode->data_blocks[0];
-	int numFill;
 	char *current_write = write_buf;
-	retstat = 0;
 
 	for (i = start_block; i < total_blocks + start_block; i++) {
-		bytes_written = block_write(i+3, current_write);
+		bytes_written = block_write(i+3+TOTAL_INODE_NUMBER, current_write);
 		current_write += bytes_written;
 		size_to_write -= bytes_written;
 		set_nth_bit(block_bm, i);
 		retstat += bytes_written;
 	}
 
-	inode->blocks = total_blocks;
 	time_t now;
 	inode->modified = time(&now);
-	free(write_buf);
+	inode->blocks = total_blocks;
 	set_nth_bit(inode_bm, num);
+	inode_table[num] = *inode;
+
+	uint8_t *buffer = malloc(BLOCK_SIZE);
+	memcpy(buffer, &inode_table[num], sizeof(inode_t));
+	block_write(i+3, buffer);
 	block_write(1, inode_bm);
 	block_write(2, &block_bm);
+	free(write_buf);
+	free(buffer);
 	return retstat;
 }
 
