@@ -538,12 +538,14 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 
 	start_block = inode->data_blocks[0];
 	char *current_write = write_buf;
+	int thisBlock;
 
-	for (i = start_block; i < total_blocks + start_block; i++) {
-		bytes_written = block_write(i+3+TOTAL_INODE_NUMBER, current_write);
+	for (i = 0; i < blocks_needed; i++) {
+		thisBlock = inode->data_blocks[i];
+		bytes_written = block_write(thisBlock+3+TOTAL_INODE_NUMBER, current_write);
 		current_write += bytes_written;
 		size_to_write -= bytes_written;
-		set_nth_bit(block_bm, i);
+		set_nth_bit(block_bm, thisBlock);
 		retstat += bytes_written;
 	}
 
