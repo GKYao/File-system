@@ -45,7 +45,7 @@ typedef struct superblock {
 	int i_list;
 } superblock_t;
 
-typedef struct inode {
+typedef struct inode_t {
 	//size equal to 512->one block
 	int id;
 	int size;
@@ -90,6 +90,9 @@ int get_inode_from_path(const char* path)
 {
 	int i;
 	for(i = 0; i < TOTAL_INODE_NUMBER; i++) {
+log_msg("GIFP: %d, %s, %d, %d, %d\n", i, inode_table[i].path, inode_table[i].size, inode_table[i].blocks, inode_table[i].data_blocks[0]);
+log_msg("IBMP: %d, %d\n", i, get_nth_bit(inode_bm, i));
+log_msg("BBMP: %d, %d\n", i, get_nth_bit(block_bm, i));
 		if(strcmp(inode_table[i].path, path) == 0){
 			return i;
 		}
@@ -135,30 +138,32 @@ char* get_name(int i)
 }
 
 //check if given path is the root of this inode
-int check_parent_dir(const char* path,int i)
+int check_parent_dir(const char* path, int i)
 {
-	char *tmp = malloc(64*sizeof(char));
+	char *temp = malloc(64);
 	int len = strlen(inode_table[i].path);
-	memcpy(tmp, inode_table[i].path, len);
-	*(tmp+len) = '\0';
-	int offset = 0;
-	int count = -1;
-	while(offset <= len-1)  {
-		if(*(tmp+offset) == '/') {
-			count=offset;
+	memcpy(temp, inode_table[i].path, len);
+	*(temp+len) = '\0';
+	int offset;
+	for(offset = len-1; offset>=0 ; offset--)
+	{
+		if(*(temp+offset) == '/' && offset!=0)
+		{
+			*(temp+offset)='\0';
+			break;
 		}
-		offset++;
-	}
-	if(count != -1) {
-		if(count == 0) {
-			tmp="/";
-		} else {
-			*(tmp+count) = '\0';
+		if(*(temp+offset) == '/'){
+			*(temp+offset+1) = '\0';
+			break;
 		}
 	}
-	if(strcmp(tmp, path) == 0) {
+	if(strcmp(temp, path)== 0)
+	{
+		free(temp);
 		return 0;
 	}
+
+	free(temp);
 	return -1;
 }
 
@@ -311,7 +316,6 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 	return retstat;
 }
 
-
 /**
  * Create and open a file
  *
@@ -331,6 +335,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 			path, mode, fi);
 	int i = get_inode_from_path(path);
 	if(i == -1) {
+log_msg("we're doing things in create\n");
 		int num = get_next_inode();
 		inode_t *tmp = malloc(sizeof(inode_t));
 		tmp->id = num;
@@ -340,7 +345,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		time_t now;
 		tmp->created = time(&now);
 		tmp->modified = time(&now);
-		memcpy(tmp->path, path, 64);
+		memcpy(tmp->path, path, 64*sizeof(char));
 		if(S_ISDIR(mode)) {
 			tmp->type = TYPE_DIRECTORY;
 		}
@@ -566,14 +571,13 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 
 	uint8_t *buffer = malloc(BLOCK_SIZE);
 	memcpy(buffer, &inode_table[num], sizeof(inode_t));
-	block_write(i+3, buffer);
+	block_write(num+3, buffer);
 	block_write(1, inode_bm);
 	block_write(2, &block_bm);
 	free(write_buf);
 	free(buffer);
 	return retstat;
 }
-
 
 /** Create a directory */
 int sfs_mkdir(const char *path, mode_t mode)
@@ -600,7 +604,6 @@ int sfs_mkdir(const char *path, mode_t mode)
 	}
 	return retstat;
 }
-
 
 /** Remove a directory */
 int sfs_rmdir(const char *path)
@@ -645,7 +648,6 @@ int sfs_rmdir(const char *path)
 	}
 	return retstat;
 }
-
 
 /** Open directory
  *
@@ -692,30 +694,28 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 		struct fuse_file_info *fi)
 {
 	int retstat = 0;
-	// fprintf(stderr, "YAO readdir-----start\n");
-	filler(buf, ".", NULL, 0);
+	filler(buf,".", NULL, 0);
 	filler(buf, "..", NULL, 0);
-	int i;
-	for(i = 0; i < TOTAL_INODE_NUMBER; i++) {
-		if(strcmp(inode_table[i].path, path) == 0) {
-			i++;
-			continue;
-		}
-		if(check_parent_dir(path, i) != -1) {
-			// fprintf(stderr, "YAO readdir-----found:%d\n",i);
-			struct stat *statbuf = malloc(sizeof(struct stat));
-			inode_t *tmp = &inode_table[i];
-			statbuf->st_mode = tmp->st_mode;
-			statbuf->st_ctime = tmp->created;
-			statbuf->st_size = tmp->size;
-			statbuf->st_blocks = tmp->blocks;
-			char* file = get_name(i);
-			filler(buf, file, statbuf, 0);
-			free(file);
-			free(statbuf);
+	int i = 0;
+	for(;i<TOTAL_INODE_NUMBER;i++)
+	{
+		if(get_nth_bit(inode_bm, i)!=0)
+		{
+			if(check_parent_dir(path, i)!=-1 && strcmp(inode_table[i].path, path)!=0)
+			{
+				char* name =get_name(i);
+				struct stat *statbuf = malloc(sizeof(struct stat));
+				inode_t *tmp = &inode_table[i];
+				statbuf->st_mode = tmp->st_mode;
+				statbuf->st_ctime = tmp->created;
+				statbuf->st_size = tmp->size;
+				statbuf->st_blocks = tmp->blocks;
+				filler(buf,name,statbuf,0);
+				free(name);
+				free(statbuf);
+			}
 		}
 	}
-	// fprintf(stderr, "YAO readdir-----finish\n");
 	return retstat;
 }
 
