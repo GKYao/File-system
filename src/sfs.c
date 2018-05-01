@@ -506,7 +506,7 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 			path, buf, size, offset, fi);
 
 	char *write_buf;
-	int i, j, start_block, size_to_read, size_to_write, size_to_alloc, bytes_written;
+	int i, j, thisBlock, size_to_read, size_to_write, size_to_alloc, bytes_written;
 	int num = get_inode_from_path(path);
 	inode_t *inode = &inode_table[num];
 
@@ -539,14 +539,14 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 		}
 	}
 
-	start_block = inode->data_blocks[0][0];
 	char *current_write = write_buf;
 
-	for (i = start_block; i < total_blocks + start_block; i++) {
-		bytes_written = block_write(i+3+TOTAL_INODE_NUMBER, current_write);
+	for (i = 0; i < blocks_needed; i++) {
+		thisBlock = inode->data_blocks[i];
+		bytes_written = block_write(thisBlock+3+TOTAL_INODE_NUMBER, current_write);
 		current_write += bytes_written;
 		size_to_write -= bytes_written;
-		set_nth_bit(block_bm, i);
+		set_nth_bit(block_bm, thisBlock);
 		retstat += bytes_written;
 	}
 
