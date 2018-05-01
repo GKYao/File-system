@@ -54,11 +54,9 @@ typedef struct inode_t {
 	int blocks;
 	mode_t st_mode;
 	unsigned char path[64];
-//	unsigned int data_blocks[16];
-	unsigned int data_blocks[12][12];
+	unsigned int data_blocks[10][10];
 	time_t created, modified;
-//	char unusedspace[340];
-	char unusedspace[(512 - ((5*sizeof(int)) + sizeof(mode_t) + (64*sizeof(unsigned char)) + (12*12*sizeof(unsigned int)) + (2*sizeof(time_t))))];
+	char unusedspace[2];
 } inode_t;
 
 superblock_t supablock;
@@ -185,9 +183,14 @@ void *sfs_init(struct fuse_conn_info *conn)
 	for (in = 0; in < TOTAL_INODE_NUMBER; in++) {
 		fd[in] = 0;
 		inode_table[in].id = in;
-		int j;
-		for (j = 0; j < 15; j++) {
-			inode_table[in].data_blocks[j] = -1;
+		int j, k;
+		for(j = 0, k = 0; ((j*10)+k) < 10*10; j++) {
+			if (k == 10) {
+				j++;
+				k = 0;
+				continue;
+			}
+			inode_table[in].data_blocks[j][k] = -1;
 		}
 		memset(&inode_table[in].path, 0, 64);
 	}
@@ -254,8 +257,15 @@ void *sfs_init(struct fuse_conn_info *conn)
 				inode_table[i].blocks = temp->blocks;
 				inode_table[i].st_mode = temp->st_mode;
 				inode_table[i].created = temp->created;
-				int j;
-				for(j = 0; j < 15; j++){ inode_table[i].data_blocks[j]=temp->data_blocks[j]; }
+				int j, k;
+				for(j = 0, k = 0; ((j*10)+k) < 10*10; j++) {
+					if (k == 10) {
+						j++;
+						k = 0;
+						continue;
+					}
+					inode_table[i].data_blocks[j][k]=temp->data_blocks[j][k];
+				}
 				memcpy(&inode_table[i].path, temp->path, 64);
 			}
 		}
@@ -344,11 +354,16 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 		else{
 			tmp->type = TYPE_FILE;
 		}
-		int count = 0;
-		while(count != 15){
-			tmp->data_blocks[count] = -1;
-			count++;
+		int i, j;
+		for(i = 0, j = 0; ((i*10)+j) < 10*10; j++) {
+			if (j == 10) {
+				i++;
+				j = 0;
+				continue;
+			}
+			tmp->data_blocks[i][j] = -1;
 		}
+
 		memcpy(&inode_table[num], tmp, sizeof(inode_t));
 		inode_t *in = &inode_table[num];
 		set_nth_bit(inode_bm, num);
@@ -380,12 +395,14 @@ int sfs_unlink(const char *path)
 		inode_t *tmp = &inode_table[i];
 		clear_nth_bit(inode_bm, tmp->id);
 		memset(tmp->path, 0, 64);
-		int i;
-		for(i = 0; i < 15; i++) {
-			if(tmp->data_blocks[i] != -1) {
-				//clear block bits
-				clear_nth_bit(block_bm, tmp->data_blocks[i]);
-				tmp->data_blocks[i] = -1;
+		int i, j;
+		for(i = 0; i < 10; i++) {
+			for (j = 0; j < 10; j++) {
+				if(tmp->data_blocks[i][j] != -1) {
+					//clear block bits
+					clear_nth_bit(block_bm, tmp->data_blocks[i][j]);
+					tmp->data_blocks[i][j] = -1;
+				}
 			}
 		}
 		//Write inode to disk
@@ -475,14 +492,20 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
 	inode_t *inode = &inode_table[get_inode_from_path(path)];
 
-	int i, blocks_to_read, start_block, bytes_read;
+	int i, j, thisBlock, blocks_to_read, bytes_read;
 	blocks_to_read = ceil((double)size / (double)BLOCK_SIZE);
 	if (inode->blocks <= 0) { return -1; }
-	start_block = inode->data_blocks[0];
 
 	char *read_buf = buf;
-	for (i = start_block; i < start_block + blocks_to_read; i++) {
-		bytes_read = block_read(i+3+TOTAL_INODE_NUMBER, read_buf);
+
+	for(i = 0, j = 0; ((i*10)+j) < blocks_to_read; j++) {
+		if (j == 10) {
+			i++;
+			j = 0;
+			continue;
+		}
+		thisBlock = inode->data_blocks[i][j];
+		bytes_read = block_read(thisBlock+3+TOTAL_INODE_NUMBER, read_buf);
 		retstat += bytes_read;
 		read_buf += bytes_read;
 	}
@@ -530,10 +553,10 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	inode->size = size_to_write;
 	int total_blocks = ceil((double)inode->size / (double) 512);
 	int blocks_needed = total_blocks - inode->blocks;
-	for (i = floor((double)inode->blocks / (double) 12); i < ceil((double)total_blocks / (double)12); i++) {
-		for (j = (inode->blocks - (i*12)); j < 12; j++) {
+	for (i = floor((double)inode->blocks / (double) 10); i < ceil((double)total_blocks / (double)10); i++) {
+		for (j = (inode->blocks - (i*10)); j < 10; j++) {
 			inode->data_blocks[i][j] = get_next_block();
-			if ((i*12)+j == total_blocks) {
+			if ((i*10)+j == total_blocks) {
 				break;
 			}
 		}
@@ -541,8 +564,13 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 
 	char *current_write = write_buf;
 
-	for (i = 0; i < blocks_needed; i++) {
-		thisBlock = inode->data_blocks[i];
+	for (i = 0, j = 0; ((i*10)+j) < blocks_needed; j++) {
+		if (j == 10) {
+			i++;
+			j = 0;
+			continue;
+		}
+		thisBlock = inode->data_blocks[i][j];
 		bytes_written = block_write(thisBlock+3+TOTAL_INODE_NUMBER, current_write);
 		current_write += bytes_written;
 		size_to_write -= bytes_written;
@@ -613,8 +641,8 @@ int sfs_rmdir(const char *path)
 		clear_nth_bit(inode_bm, tmp->id);
 		memset(tmp->path, 0, 64);
 		int i;
-		for(i = 0; i < 12; i++) {
-			for (j = 0; j < 12; j++) {
+		for(i = 0; i < 10; i++) {
+			for (j = 0; j < 10; j++) {
 				//clear block bits
 				if(tmp->data_blocks[i][j] != -1) {
 					clear_nth_bit(block_bm, tmp->data_blocks[i][j]);
@@ -772,9 +800,6 @@ int main(int argc, char *argv[])
 
 	// turn over control to fuse
 //	fprintf(stderr, "about to call fuse_main, %s \n", sfs_data->diskfile);
-	fprintf(stderr, "int, unInt, unChar, time, mode, char[]: %d, %d, %d, %d, %d, %d\n",
-			sizeof(int), sizeof(unsigned int), sizeof(unsigned char), sizeof(time_t), sizeof(mode_t), sizeof(unsigned int[12][12]));
-	fprintf(stderr, "inode: %d\n", sizeof (inode_t));
 	fuse_stat = fuse_main(argc, argv, &sfs_oper, sfs_data);
 	fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
 
