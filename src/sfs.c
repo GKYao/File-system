@@ -553,7 +553,9 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	inode->size = size_to_write;
 	int total_blocks = ceil((double)inode->size / (double) 512);
 	int blocks_needed = total_blocks - inode->blocks;
-	for (i = floor((double)inode->blocks / (double) 10); i < ceil((double)total_blocks / (double)10); i++) {
+	int stop = (ceil((double)total_blocks / (double)10));
+	if (stop == 0) { stop = 1; }
+	for (i = floor((double)inode->blocks / (double) 10); i < stop; i++) {
 		for (j = (inode->blocks - (i*10)); j < 10; j++) {
 			inode->data_blocks[i][j] = get_next_block();
 			if ((i*10)+j == total_blocks) {
